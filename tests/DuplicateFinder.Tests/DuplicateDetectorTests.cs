@@ -27,9 +27,10 @@ public class DuplicateDetectorTests
             });
 
             Assert.Single(groups);
-            Assert.Equal(2, groups[0].Count);
-            Assert.Contains(original, groups[0]);
-            Assert.Contains(copy, groups[0]);
+            Assert.Equal(2, groups[0].FilePaths.Count);
+            Assert.Contains(original, groups[0].FilePaths);
+            Assert.Contains(copy, groups[0].FilePaths);
+            Assert.Equal(12, groups[0].SizeBytes);
         }
         finally
         {
@@ -62,13 +63,24 @@ public class DuplicateDetectorTests
             });
 
             Assert.Single(groups);
-            Assert.Equal(2, groups[0].Count);
-            Assert.Contains(duplicateOne, groups[0]);
-            Assert.Contains(duplicateTwo, groups[0]);
+            Assert.Equal(2, groups[0].FilePaths.Count);
+            Assert.Contains(duplicateOne, groups[0].FilePaths);
+            Assert.Contains(duplicateTwo, groups[0].FilePaths);
         }
         finally
         {
             Directory.Delete(root, recursive: true);
         }
+    }
+
+    [Fact]
+    public void DuplicateGroup_ReportsHumanReadableMetadata()
+    {
+        var group = new DuplicateGroup(new[] { "a.txt", "b.txt" }, 32);
+
+        Assert.Equal(2, group.FilePaths.Count);
+        Assert.Equal(32, group.SizeBytes);
+        Assert.Contains("a.txt", group.FilePaths);
+        Assert.Contains("b.txt", group.FilePaths);
     }
 }

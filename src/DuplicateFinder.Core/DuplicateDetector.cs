@@ -4,7 +4,7 @@ using System.Security.Cryptography;
 
 public sealed class DuplicateDetector
 {
-    public IReadOnlyList<IReadOnlyList<string>> FindDuplicates(string rootPath, ScanOptions? options = null)
+    public IReadOnlyList<DuplicateGroup> FindDuplicates(string rootPath, ScanOptions? options = null)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
         {
@@ -21,7 +21,7 @@ public sealed class DuplicateDetector
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
-        var duplicateGroups = new List<IReadOnlyList<string>>();
+        var duplicateGroups = new List<DuplicateGroup>();
 
         foreach (var sizeGroup in files.GroupBy(filePath => new FileInfo(filePath).Length).Where(group => group.Count() > 1))
         {
@@ -42,7 +42,9 @@ public sealed class DuplicateDetector
 
             foreach (var hashGroup in hashGroups.Values.Where(group => group.Count > 1))
             {
-                duplicateGroups.Add(hashGroup.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList());
+                var orderedPaths = hashGroup.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+                var sizeBytes = new FileInfo(orderedPaths[0]).Length;
+                duplicateGroups.Add(new DuplicateGroup(orderedPaths, sizeBytes));
             }
         }
 
