@@ -12,3 +12,6 @@ Read `README.md` for public goals and `local-only/PROJECT_CONTEXT.md` if it exis
 - Treat third-party apps and tools as untrusted; don't run them on the host for analysis.
 - Respect third-party EULAs and applicable law. No activation bypass, keygens, trial circumvention or copied proprietary code/assets. Keep observations/specs separate from implementation.
 - If a requirement is ambiguous, propose a minimal plan and ask before broad changes.
+- Use human-readable naming everywhere: branch names, file names, type names, method names, variables, tests, and PR titles should read naturally and describe intent.
+- Avoid numbered or placeholder names such as `DF-001`, `Class1`, `UnitTest1`, `Thing`, or other vague labels in production code or branch naming.
+- Prefer names like `file-discovery`, `FileScanner`, `DuplicateScanResult`, and `EnumerateFiles` that are descriptive and professional.
