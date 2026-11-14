@@ -152,7 +152,18 @@ public class FileScannerTests
 
         try
         {
-            Directory.CreateSymbolicLink(linkedDirectory, realDirectory);
+            try
+            {
+                Directory.CreateSymbolicLink(linkedDirectory, realDirectory);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return;
+            }
+            catch (IOException)
+            {
+                return;
+            }
 
             var safeFile = Path.Combine(realDirectory, "safe.txt");
             File.WriteAllText(safeFile, "safe");
@@ -165,10 +176,6 @@ public class FileScannerTests
 
             Assert.Single(files);
             Assert.Contains(safeFile, files);
-        }
-        catch (UnauthorizedAccessException)
-        {
-            return;
         }
         finally
         {
