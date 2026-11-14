@@ -4,8 +4,10 @@ using System.Security.Cryptography;
 
 public sealed class DuplicateDetector
 {
-    public IReadOnlyList<DuplicateGroup> FindDuplicates(string rootPath, ScanOptions? options = null)
+    public IReadOnlyList<DuplicateGroup> FindDuplicates(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+
         if (string.IsNullOrWhiteSpace(rootPath))
         {
             throw new ArgumentException("Root path is required.", nameof(rootPath));
@@ -17,7 +19,7 @@ public sealed class DuplicateDetector
         }
 
         var scanner = new FileScanner();
-        var files = scanner.EnumerateFiles(rootPath, options ?? new ScanOptions())
+        var files = scanner.EnumerateFiles(rootPath, options ?? new ScanOptions(), cancellationToken)
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToList();
 
@@ -25,37 +27,95 @@ public sealed class DuplicateDetector
 
         foreach (var sizeGroup in files.GroupBy(filePath => new FileInfo(filePath).Length).Where(group => group.Count() > 1))
         {
-            var hashGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var sampleHashGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var filePath in sizeGroup)
             {
-                var hash = ComputeHash(filePath);
+                cancellationToken.ThrowIfCancellationRequested();
 
-                if (!hashGroups.TryGetValue(hash, out var group))
+                var sampleHash = ComputeHash(filePath, cancellationToken, 64 * 1024);
+
+                if (!sampleHashGroups.TryGetValue(sampleHash, out var group))
                 {
                     group = new List<string>();
-                    hashGroups[hash] = group;
+                    sampleHashGroups[sampleHash] = group;
                 }
 
                 group.Add(filePath);
             }
 
-            foreach (var hashGroup in hashGroups.Values.Where(group => group.Count > 1))
+            foreach (var sampleGroup in sampleHashGroups.Values)
             {
-                var orderedPaths = hashGroup.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
-                var sizeBytes = new FileInfo(orderedPaths[0]).Length;
-                duplicateGroups.Add(new DuplicateGroup(orderedPaths, sizeBytes));
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var hashGroups = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var filePath in sampleGroup)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var hash = ComputeHash(filePath, cancellationToken);
+
+                    if (!hashGroups.TryGetValue(hash, out var group))
+                    {
+                        group = new List<string>();
+                        hashGroups[hash] = group;
+                    }
+
+                    group.Add(filePath);
+                }
+
+                foreach (var hashGroup in hashGroups.Values.Where(group => group.Count > 1))
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+
+                    var orderedPaths = hashGroup.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+                    var sizeBytes = new FileInfo(orderedPaths[0]).Length;
+                    duplicateGroups.Add(new DuplicateGroup(orderedPaths, sizeBytes));
+                }
             }
         }
 
         return duplicateGroups;
     }
 
-    private static string ComputeHash(string filePath)
+    private static string ComputeHash(string filePath, CancellationToken cancellationToken, long? maxBytes = null)
     {
         using var stream = File.OpenRead(filePath);
         using var sha256 = SHA256.Create();
-        var hash = sha256.ComputeHash(stream);
-        return Convert.ToHexString(hash);
+        var buffer = new byte[1024 * 1024];
+        long bytesProcessed = 0;
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
+            {
+                break;
+            }
+
+            var remainingBytes = maxBytes.HasValue ? maxBytes.Value - bytesProcessed : buffer.Length;
+            var bytesToRead = remainingBytes < buffer.Length ? (int)remainingBytes : buffer.Length;
+
+            var bytesRead = stream.Read(buffer, 0, bytesToRead);
+            if (bytesRead == 0)
+            {
+                break;
+            }
+
+            bytesProcessed += bytesRead;
+            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+
+            if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
+            {
+                break;
+            }
+        }
+
+        sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+        return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
     }
 }

@@ -1,0 +1,43 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="900" d:DesignHeight="560"
+        x:Class="DuplicateFinder.Desktop.MainWindow"
+        Title="DuplicateFinder"
+        Width="940"
+        Height="620">
+    <Grid RowDefinitions="Auto,Auto,*" Margin="12" ColumnDefinitions="*">
+        <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
+            <TextBox Name="RootPathBox" Width="560" PlaceholderText="Scan root (safe demo directory)" />
+            <Button Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
+            <Button Name="ScanButton" Content="Scan" Click="ScanButton_Click" />
+            <Button Name="CleanupButton" Content="Delete Duplicate" Click="CleanupButton_Click" />
+        </StackPanel>
+
+        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20" Margin="0,0,0,12">
+            <TextBlock>
+                <Run Text="Duplicate groups: " />
+                <Run Name="GroupCountText" Text="0" />
+            </TextBlock>
+            <TextBlock>
+                <Run Text="Duplicate files: " />
+                <Run Name="DuplicateFileCountText" Text="0" />
+            </TextBlock>
+            <TextBlock>
+                <Run Text="Reclaimable: " />
+                <Run Name="ReclaimableText" Text="0 bytes" />
+            </TextBlock>
+        </StackPanel>
+
+        <StackPanel Grid.Row="2" Spacing="8">
+            <TextBlock Name="StatusText" Text="Ready to scan." FontWeight="SemiBold" />
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Text="Keep file:" VerticalAlignment="Center" />
+                <ComboBox Name="KeepFileComboBox" Width="420" />
+            </StackPanel>
+            <TextBlock Name="ReviewText" Text="No review selected." Foreground="Gray" />
+            <ListBox Name="ResultsList" />
+        </StackPanel>
+    </Grid>
+</Window>

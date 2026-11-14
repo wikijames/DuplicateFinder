@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/src/">
     <Project Path="src/DuplicateFinder.Core/DuplicateFinder.Core.csproj" />
+    <Project Path="src/DuplicateFinder.Desktop/DuplicateFinder.Desktop.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/DuplicateFinder.Tests/DuplicateFinder.Tests.csproj" />
