@@ -1,0 +1,65 @@
+# .NET / IDE outputs
+**/bin/
+**/obj/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.example.json
+.idea/
+TestResults/
+**/TestResults/
+coverage/
+*.coverage
+*.coveragexml
+*.trx
+*.user
+*.suo
+*.rsuser
+*.pdb
+
+# Secrets, tokens, environment and certificates
+.env
+.env.*
+!.env.example
+*.secret
+*.secrets
+*secrets*.json
+appsettings.*.local.json
+appsettings.Development.json
+*.pfx
+*.p12
+*.pem
+*.key
+*.kdbx
+*.publishsettings
+*.pubxml.user
+
+# Local-only notes, research evidence, external binaries and datasets
+/local-only/
+/private/
+/research-private/
+/third-party/
+/vendor-binaries/
+/samples-private/
+/fixtures-private/
+/analysis-output/
+/diagnostics/
+*.dmp
+*.hdmp
+*.etl
+*.pcap
+*.pcapng
+*.har
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# OS / transient
+.DS_Store
+Thumbs.db
+*.tmp
+*.log
+
+# Optional local agent configuration
+.codex/
+.claude/

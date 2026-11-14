@@ -1,0 +1,98 @@
+# DuplicateFinder
+
+An independently developed, cross-platform duplicate-file finder. Windows desktop is the first target; Android is a future goal.
+
+## Status (14 November 2026)
+
+**Phase 0 — foundation in progress.** The local repository already contains:
+- `DuplicateFinder.slnx` (.NET 10 solution)
+- `src/DuplicateFinder.Core` (C# class library)
+- `tests/DuplicateFinder.Tests` (xUnit test project referencing Core)
+- A successful `dotnet build` and `dotnet test` (1 starter test passed)
+
+The Avalonia UI, scanning algorithms and Android application have **not** been implemented yet. A proposed `FileScanner.cs` was discussed, but its creation was not confirmed. Check the actual files before changing anything.
+
+## Goals
+
+1. Recursively discover files with low memory overhead, explicit handling of inaccessible folders, reparse points and cancellation.
+2. Filter by size, extension, path and file attributes.
+3. Find exact duplicates through size grouping, optional sampled hashing, streaming full-file hashing and collision-safe verification where warranted.
+4. Later: visually similar images and videos (a separate feature from exact byte duplicates).
+5. Show clear scan progress, grouped results, previews and review-first actions.
+6. Support safe move-to-recycle-bin or quarantine/backup before any permanent deletion; never delete automatically.
+7. Benchmark on SSD/HDD and large directories without assuming unlimited memory.
+8. Reuse a platform-neutral C# core for a future Android UI, adapting to Android's scoped-storage permissions and APIs.
+
+## Technology and architecture
+
+- C#, .NET 10, Avalonia UI for Windows; Android support is a *planned feasibility target*, not yet proven.
+- Keep `DuplicateFinder.Core` independent of UI and Windows-specific APIs.
+- Use xUnit and small, deterministic test fixtures; avoid destructive tests on user folders.
+- Prefer bounded concurrency and streaming I/O. Measure before optimizing.
+- Suggested future layout: `src/DuplicateFinder.Desktop`, `tests/`, `docs/`, `.github/workflows/`.
+
+## Development process
+
+- Small changes, build and test after each step, review diffs before committing.
+- `main` stays stable; use `feature/...` branches and PRs for meaningful features.
+- No automatic pushes, repository publishing or destructive actions without approval.
+- Maintain an issue/roadmap for each milestone.
+- Never commit credentials, personal files, diagnostic dumps, licensed third-party binaries or private research artifacts.
+
+## Independent implementation
+
+This project implements general-purpose file management functionality using original code, public documentation and independently authored behavioral specifications. It does not include third-party proprietary code, icons, assets, extracted resources or licensing mechanisms. Any study of other software must respect its EULA and applicable law, be performed in an isolated environment, and remain separate from implementation. Preserve accurate attribution and provenance in appropriate private records; do not disguise copied material.
+
+## Getting started
+
+```powershell
+dotnet build
+dotnet test
+```
+
+The project is early-stage; these commands validate the foundation, not a complete product.
+
+## Phase-based backlog and issue plan
+
+This README acts as the working backlog until the corresponding GitHub Issues are created for each milestone. Use these ticket identifiers in commit messages, branch names, and pull request descriptions when the work is ready.
+
+### Phase 0 — Foundation and repository discipline
+- DF-001 — Repository setup and documentation: finalise README, agent rules, project context, and branch workflow.
+- DF-002 — Privacy and repository hygiene: validate .gitignore, local-only exclusions, and first-commit review.
+- DF-003 — GitHub workflow setup: configure default branch, remote, pull request flow, and branch protection strategy.
+- DF-004 — Initial CI foundation: add lightweight GitHub Actions to build and test on pull requests to main.
+
+### Phase 1 — File discovery and filtering
+- DF-101 — Implement recursive file enumeration with bounded concurrency and cancellation support.
+- DF-102 — Add path, extension, size, and attribute filtering for candidate scan sets.
+- DF-103 — Handle inaccessible directories, reparse points, symlinks, and permission edge cases safely.
+- DF-104 — Measure and tune scanning performance on SSD/HDD and low-memory laptops.
+
+### Phase 2 — Exact duplicate detection
+- DF-201 — Add size-grouping pipeline and duplicate candidate generation.
+- DF-202 — Implement streaming hash verification for exact-file comparison.
+- DF-203 — Add collision-safe validation and deterministic test fixtures.
+- DF-204 — Benchmark scanning and hashing throughput against realistic synthetic data.
+
+### Phase 3 — Desktop experience
+- DF-301 — Design the desktop architecture around a UI-agnostic core library.
+- DF-302 — Implement the Avalonia desktop shell and scanning workflow.
+- DF-303 — Add result grouping, preview panels, and review-first actions.
+- DF-304 — Add safe deletion and quarantine flows with clear user confirmation.
+
+### Phase 4 — Image and media similarity research
+- DF-401 — Evaluate duplicate image similarity heuristics and constraints for Windows builds.
+- DF-402 — Implement optional visual similarity analysis without affecting exact-match performance.
+- DF-403 — Define the feature boundary between exact duplicates and similarity-based matching.
+
+### Phase 5 — Resilience, performance, and release readiness
+- DF-501 — Add robust logging, diagnostics, and cancellation/error reporting.
+- DF-502 — Profile memory use and tune concurrency for lower-end hardware.
+- DF-503 — Prepare release documentation, security review, and quality gates.
+
+### Phase 6 — Android feasibility
+- DF-601 — Review Android storage access model and feasibility for a future app.
+- DF-602 — Validate UI/core boundaries for a later Android port.
+- DF-603 — Define the minimum viable Android prototype and success criteria.
+
+This backlog is intended to keep delivery incremental, reviewable, and realistic for the current hardware constraints.
