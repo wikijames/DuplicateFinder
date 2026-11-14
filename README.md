@@ -2,15 +2,9 @@
 
 An independently developed, cross-platform duplicate-file finder. Windows desktop is the first target; Android is a future goal.
 
-## Status (14 November 2026)
+## Status (15 November 2026)
 
-**Phase 0 — foundation in progress.** The local repository already contains:
-- `DuplicateFinder.slnx` (.NET 10 solution)
-- `src/DuplicateFinder.Core` (C# class library)
-- `tests/DuplicateFinder.Tests` (xUnit test project referencing Core)
-- A successful `dotnet build` and `dotnet test` (1 starter test passed)
-
-The Avalonia UI, scanning algorithms and Android application have **not** been implemented yet. A proposed `FileScanner.cs` was discussed, but its creation was not confirmed. Check the actual files before changing anything.
+**Phase 3 review workflow landed; Phase 4 feasibility work starting.** The solution now includes safe file scanning, exact duplicate detection, an Avalonia desktop review flow, and explicit confirmation before cleanup. The next milestone is DF-401: evaluate image-similarity methods and cross-platform decoding constraints. Exact byte matching remains separate from any future visual-similarity results.
 
 ## Goals
 
@@ -81,7 +75,7 @@ This README acts as the working backlog until the corresponding GitHub Issues ar
 - DF-304 — Add safe deletion and quarantine flows with clear user confirmation.
 
 ### Phase 4 — Image and media similarity research
-- DF-401 — Evaluate duplicate image similarity heuristics and constraints for Windows builds.
+- DF-401 — Evaluate duplicate image similarity heuristics and constraints for Windows builds. See [the feasibility note](docs/image-media-similarity-feasibility.md).
 - DF-402 — Implement optional visual similarity analysis without affecting exact-match performance.
 - DF-403 — Define the feature boundary between exact duplicates and similarity-based matching.
 
