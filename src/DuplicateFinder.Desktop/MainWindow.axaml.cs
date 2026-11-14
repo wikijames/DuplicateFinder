@@ -1,8 +1,12 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Layout;
+using Avalonia.Media;
 using Avalonia.Platform.Storage;
 using DuplicateFinder.Core;
 
@@ -22,18 +26,20 @@ public partial class MainWindow : Window
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
     {
-        var startFolder = string.IsNullOrWhiteSpace(RootPathBox.Text)
-            ? null
-            : RootPathBox.Text.Trim();
-
-        var folder = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        var pickerOptions = new FolderPickerOpenOptions
         {
             Title = "Select a folder to scan",
-            AllowMultiple = false,
-            SuggestedStartLocation = startFolder is null ? null : await StorageProvider.TryGetFolderFromPathAsync(new Uri(startFolder))
-        });
+            AllowMultiple = false
+        };
 
-        var selectedPath = folder.FirstOrDefault()?.Path.LocalPath;
+        var startFolder = RootPathBox.Text?.Trim();
+        if (!string.IsNullOrWhiteSpace(startFolder) && Directory.Exists(startFolder))
+        {
+            pickerOptions.SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(new Uri(Path.GetFullPath(startFolder)));
+        }
+
+        var folders = await StorageProvider.OpenFolderPickerAsync(pickerOptions);
+        var selectedPath = folders.FirstOrDefault()?.Path.LocalPath;
         if (string.IsNullOrWhiteSpace(selectedPath))
         {
             return;
@@ -48,7 +54,7 @@ public partial class MainWindow : Window
         TryScanCurrentRoot();
     }
 
-    private void CleanupButton_Click(object sender, RoutedEventArgs e)
+    private async void CleanupButton_Click(object sender, RoutedEventArgs e)
     {
         if (_pendingOperation is null)
         {
@@ -56,7 +62,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var confirmed = ConfirmCleanup(_pendingOperation.KeepPath);
+        var confirmed = await ConfirmCleanupAsync(_pendingOperation.KeepPath);
         if (!confirmed)
         {
             ResultsList.ItemsSource = new[] { "Cleanup cancelled by the user." };
@@ -157,7 +163,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var decision = new DuplicateReviewDecision(_currentDuplicateGroup, removeTarget, DuplicateAction.Delete);
+        var decision = selection.ToDecision(DuplicateAction.Delete, removeTarget);
         var plan = new DuplicateCleanupPlan(decision);
         if (!plan.CanExecute)
         {
@@ -172,8 +178,41 @@ public partial class MainWindow : Window
         StatusText.Text = $"Reviewing duplicate group: keep '{selection.KeepFilePath}' and remove '{removeTarget}'.";
     }
 
-    private static bool ConfirmCleanup(string keepPath)
+    private async Task<bool> ConfirmCleanupAsync(string keepPath)
     {
-        return true;
+        var cancelButton = new Button { Content = "Cancel", IsCancel = true };
+        var deleteButton = new Button { Content = "Delete selected", IsDefault = true };
+        var dialog = new Window
+        {
+            Title = "Confirm duplicate cleanup",
+            Width = 440,
+            Height = 190,
+            CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20),
+                Spacing = 16,
+                Children =
+                {
+                    new TextBlock
+                    {
+                        Text = $"This will delete the selected duplicate file(s) while keeping '{keepPath}'. Do you want to continue?",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        HorizontalAlignment = HorizontalAlignment.Right,
+                        Spacing = 8,
+                        Children = { cancelButton, deleteButton }
+                    }
+                }
+            }
+        };
+
+        cancelButton.Click += (_, _) => dialog.Close(false);
+        deleteButton.Click += (_, _) => dialog.Close(true);
+        return await dialog.ShowDialog<bool>(this);
     }
 }

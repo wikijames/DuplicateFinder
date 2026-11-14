@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using DuplicateFinder.Core;
+using Microsoft.VisualBasic.FileIO;
 
 namespace DuplicateFinder.Desktop;
 
@@ -20,9 +21,20 @@ public sealed class WindowsCleanupService
 
         foreach (var path in operation.PathsToRemove)
         {
-            if (File.Exists(path))
+            if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
+            {
+                continue;
+            }
+
+            if (operation.Action == DuplicateAction.Delete)
             {
                 File.Delete(path);
+                continue;
+            }
+
+            if (operation.Action == DuplicateAction.MoveToRecycleBin)
+            {
+                FileSystem.DeleteFile(path, UIOption.OnlyErrorDialogs, RecycleOption.SendToRecycleBin);
             }
         }
     }

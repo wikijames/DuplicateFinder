@@ -287,7 +287,7 @@ public sealed class FileScanner
             return false;
         }
 
-        var relativePath = path;
+        string relativePath = path;
         if (path.StartsWith(rootPath, StringComparison.OrdinalIgnoreCase))
         {
             relativePath = path.Substring(rootPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

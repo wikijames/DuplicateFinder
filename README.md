@@ -96,3 +96,15 @@ This README acts as the working backlog until the corresponding GitHub Issues ar
 - DF-603 — Define the minimum viable Android prototype and success criteria.
 
 This backlog is intended to keep delivery incremental, reviewable, and realistic for the current hardware constraints.
+
+## Naming standards
+
+Use human-readable, professional naming everywhere in the project.
+
+- Branch names should use meaningful names such as `feature/file-discovery`, `fix/scan-cancellation`, or `docs/roadmap` rather than numeric IDs or generated labels.
+- File names should describe purpose, for example `FileScanner.cs`, `DuplicateScanResult.cs`, or `ScanOptions.cs`, not placeholders like `Class1.cs` or `UnitTest1.cs`.
+- Type, method, property, and variable names should read like domain language, not internal counters or shorthand.
+- Prefer clear names such as `ScanRoot`, `EnumerateFiles`, and `DuplicateGroup` over vague names like `Thing`, `Data`, or `Helper`.
+- Keep names consistent across the solution and avoid mixing technical numbers, internal issue IDs, or accidental code-generation names into the public codebase.
+
+This standard applies to branch names, file names, code symbols, tests, and PR descriptions.
