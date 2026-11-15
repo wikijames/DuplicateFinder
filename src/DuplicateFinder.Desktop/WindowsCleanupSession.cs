@@ -33,6 +33,35 @@ public sealed class WindowsCleanupSession : IDisposable
 
     private WindowsCleanupSession() { }
 
+    internal Stream DiagnosticStream => _keep ?? throw new InvalidOperationException("No diagnostic file is open.");
+
+    internal static WindowsCleanupSession CreateDiagnosticFile(string path)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        var session = new WindowsCleanupSession();
+        try
+        {
+            path = GetSupportedPath(path);
+            session.LockParents(path, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+            // CREATE_NEW refuses existing files, including existing links. No deletion access is requested.
+            var handle = CreateFile(NativePath(path), 0x40000000 | ReadAttributes, FileShare.Read,
+                IntPtr.Zero, 1, OpenReparsePoint, IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                handle.Dispose();
+                throw new IOException("A new diagnostic file could not be created.");
+            }
+            try
+            {
+                CheckAttributes(handle, directory: false);
+                session._keep = new FileStream(handle, FileAccess.Write);
+            }
+            catch { handle.Dispose(); throw; }
+            return session;
+        }
+        catch { session.Dispose(); throw; }
+    }
+
     internal static async System.Threading.Tasks.Task<byte[]> ReadPreviewBytesAsync(string path, System.Threading.CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();

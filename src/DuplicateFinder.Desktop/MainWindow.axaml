@@ -25,6 +25,7 @@
                 <TextBlock Classes="muted" Text="Find matching files. Review what stays." />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
+                <Button Name="DiagnosticsButton" Content="Diagnostics: off" Click="DiagnosticsButton_Click" AutomationProperties.Name="Local diagnostic recording" />
                 <ComboBox Name="AppearanceBox" Width="130" AutomationProperties.Name="Application appearance" SelectionChanged="AppearanceBox_SelectionChanged" />
             <Border Background="{DynamicResource WorkspaceBadge}" CornerRadius="6" Padding="12,7" VerticalAlignment="Center">
                 <TextBlock Text="EXACT FILE MATCHES" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="11" FontWeight="SemiBold" />

@@ -51,7 +51,7 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 - [ ] Benchmark reproducible synthetic data on SSD/HDD: many small files, large files, duplicate-heavy and mostly unique scans.
 - [ ] Record throughput, allocations, peak memory and cancellation latency before tuning concurrency.
-- [ ] Add useful opt-in/persistent diagnostics with privacy controls and explicit retention; current trace output is sanitized but not persisted.
+- [x] Add explicit opt-in, session-only persistent diagnostics with a fixed privacy schema, 16/64 KiB file caps, a bounded queue and user-managed retention. See [behavior and validation](opt-in-diagnostics.md).
 - [ ] Review all direct/transitive package vulnerabilities, licensing and deployment footprint.
 - [ ] Expand automated and interactive tests for the supported Windows and file-system matrix.
 
