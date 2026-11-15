@@ -47,6 +47,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Performance and diagnostics
 
+- [x] Add a reproducible synthetic benchmark harness and validate all workloads locally; measure a targeted hashing-buffer allocation reduction. See [baseline, metrics and limitations](synthetic-scan-benchmarks.md).
+
 - [ ] Benchmark reproducible synthetic data on SSD/HDD: many small files, large files, duplicate-heavy and mostly unique scans.
 - [ ] Record throughput, allocations, peak memory and cancellation latency before tuning concurrency.
 - [ ] Add useful opt-in/persistent diagnostics with privacy controls and explicit retention; current trace output is sanitized but not persisted.

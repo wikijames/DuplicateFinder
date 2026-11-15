@@ -25,6 +25,6 @@ Scans now byte-verify hash candidates and report encountered file/folder failure
 1. Hard-link safety is merged. Review the multi-folder scan/settings phase and verify hosted CI against `development`. See [scan controls and validation](multiple-scan-folders.md).
 2. Review results search/sorting and bounded text previews; see [behavior and validation](results-search-and-previews.md). Manually validate native Explorer folder drops before release.
 3. Review measured scan progress, keyboard controls and System/Light/Dark appearance; see [validation and remaining accessibility gates](scan-progress-and-accessibility.md). The current suite has 202 passing tests. Measure synthetic benchmarks before tuning performance. Broader image/document preview support is separate work.
-4. Continue release diagnostics, storage-failure testing, packaging and security review without treating a feature branch as a full release certification.
+4. Review the [synthetic benchmark baseline and hashing allocation change](synthetic-scan-benchmarks.md); 207 tests pass. Continue opt-in persistent diagnostics, physical-storage measurements, storage-failure testing, packaging and security review without treating a feature branch as a full release certification.
 
 Image similarity remains blocked on the dependency decision described in [the feasibility note](image-media-similarity-feasibility.md).
