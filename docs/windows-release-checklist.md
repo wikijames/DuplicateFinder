@@ -27,7 +27,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 - [x] Add streaming scan-time byte verification after hashing; preserve fingerprints for guarded cleanup.
 - [x] Isolate detected disappearing, changing and inaccessible files/directories; retain healthy groups and mark incomplete scans. See [verified scans](verified-scans.md).
-- [ ] Define hard-link handling and test reparse points, symlinks, long paths and supported drive types.
+- [x] Define conservative hard-link exclusion and independently block linked files in cleanup/restore. Validate NTFS identities, outside-root aliases, long-path round trips and rejected path forms. See [hard-link and path coverage](hard-link-safety.md).
+- [ ] Expand real reparse/symlink, OS and drive coverage beyond the current NTFS fixtures, including ReFS/FAT/exFAT/removable media and shell long-path behavior.
 - [x] Expose unique skipped-file/folder and changed-file counts with an immutable issue summary and persistent incomplete-scan warning.
 - [ ] Measure memory retention on large candidate sets and bound work queues before adding concurrency.
 

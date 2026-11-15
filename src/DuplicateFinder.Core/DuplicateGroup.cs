@@ -352,6 +352,10 @@ public sealed class DuplicateScanReport
                 $"Skipped {summary.Issues.SkippedFileCount} file(s) and {summary.Issues.SkippedDirectoryCount} folder(s); " +
                 $"{summary.Issues.ChangedFileCount} file(s) changed during scanning.";
         }
+        if (summary.Issues.ExcludedHardLinkPathCount > 0)
+        {
+            StatusMessage += $" Excluded {summary.Issues.ExcludedHardLinkPathCount} hard-linked path(s) from matching and extra-copy totals.";
+        }
     }
 
     public string RootPath { get; }
@@ -421,6 +425,10 @@ public sealed class DuplicateReviewSelection
 
 public sealed class DuplicateScanCoordinator
 {
+    private readonly IFileIdentityProvider? _identityProvider;
+    public DuplicateScanCoordinator() { }
+    public DuplicateScanCoordinator(IFileIdentityProvider? identityProvider) => _identityProvider = identityProvider;
+
     public DuplicateScanSummary Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
@@ -428,7 +436,7 @@ public sealed class DuplicateScanCoordinator
             throw new ArgumentException("A root path is required.", nameof(rootPath));
         }
 
-        var detector = new DuplicateDetector();
+        var detector = new DuplicateDetector(_identityProvider);
         var result = detector.Scan(rootPath, options ?? new ScanOptions(), cancellationToken);
         return new DuplicateScanSummary(rootPath, result.Groups, result.Issues);
     }

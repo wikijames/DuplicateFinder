@@ -262,7 +262,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var coordinator = new DuplicateScanCoordinator();
+        var coordinator = new DuplicateScanCoordinator(OperatingSystem.IsWindows() ? new WindowsFileIdentityProvider() : null);
         ClearCurrentResults("Scanning...");
         var report = await Task.Run(() => coordinator.CreateReport(rootPath, options, cancellationToken), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
@@ -320,8 +320,9 @@ public partial class MainWindow : Window
 
     private void ShowScanIssues(DuplicateScanReport report)
     {
-        ScanWarningText.Text = report.Summary.IsComplete ? string.Empty : report.StatusMessage;
-        ScanWarningText.IsVisible = !report.Summary.IsComplete;
+        var showNotice = !report.Summary.IsComplete || report.Summary.Issues.ExcludedHardLinkPathCount > 0;
+        ScanWarningText.Text = showNotice ? report.StatusMessage : string.Empty;
+        ScanWarningText.IsVisible = showNotice;
     }
 
     private void RefreshReview()

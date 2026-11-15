@@ -7,13 +7,17 @@ public sealed class DuplicateDetector
     private readonly FileScanner _scanner;
     private readonly Func<string, string> _groupHash;
     private readonly Action? _beforeVerification;
+    private readonly IFileIdentityProvider? _identityProvider;
 
     public DuplicateDetector() : this(new FileScanner()) { }
-    internal DuplicateDetector(FileScanner scanner, Func<string, string>? groupHash = null, Action? beforeVerification = null)
+    public DuplicateDetector(IFileIdentityProvider? identityProvider) : this(new FileScanner(), identityProvider: identityProvider) { }
+    internal DuplicateDetector(FileScanner scanner, Func<string, string>? groupHash = null, Action? beforeVerification = null,
+        IFileIdentityProvider? identityProvider = null)
     {
         _scanner = scanner;
         _groupHash = groupHash ?? (hash => hash);
         _beforeVerification = beforeVerification;
+        _identityProvider = identityProvider;
     }
 
     public IReadOnlyList<DuplicateGroup> FindDuplicates(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
@@ -43,7 +47,19 @@ public sealed class DuplicateDetector
                 var info = new FileInfo(path);
                 info.Refresh();
                 if (!info.Exists) throw new FileNotFoundException("Scan candidate disappeared.");
-                Add(sizeGroups, info.Length, new Candidate(path, info.Length, info.LastWriteTimeUtc));
+                FileIdentity? identity = null;
+                if (_identityProvider is not null)
+                {
+                    using var stream = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    identity = _identityProvider.ReadIdentity(stream);
+                    if (identity.Value.HardLinkCount < 1) throw new IOException("File link count could not be determined.");
+                    if (identity.Value.HardLinkCount > 1)
+                    {
+                        diagnostics.HardLinkExcluded(path);
+                        continue;
+                    }
+                }
+                Add(sizeGroups, info.Length, new Candidate(path, info.Length, info.LastWriteTimeUtc, Identity: identity));
             }
             catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception))
             {
@@ -89,12 +105,15 @@ public sealed class DuplicateDetector
         group.Add(candidate);
     }
 
-    private static string? TryHash(Candidate candidate, ScanDiagnostics diagnostics, CancellationToken token, long? maxBytes = null)
+    private string? TryHash(Candidate candidate, ScanDiagnostics diagnostics, CancellationToken token, long? maxBytes = null)
     {
         try
         {
             EnsureUnchanged(candidate);
-            var hash = ComputeHash(candidate.Path, token, maxBytes);
+            using var stream = File.Open(candidate.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            ValidateIdentity(candidate, stream);
+            var hash = ComputeHash(stream, token, maxBytes);
+            ValidateIdentity(candidate, stream);
             EnsureUnchanged(candidate);
             return hash;
         }
@@ -114,7 +133,7 @@ public sealed class DuplicateDetector
             throw new ScanFileChangedException();
     }
 
-    private static void VerifyBucket(List<Candidate> bucket, List<DuplicateGroup> groups, ScanDiagnostics diagnostics, CancellationToken token)
+    private void VerifyBucket(List<Candidate> bucket, List<DuplicateGroup> groups, ScanDiagnostics diagnostics, CancellationToken token)
     {
         var remaining = bucket.OrderBy(candidate => candidate.Path, StringComparer.OrdinalIgnoreCase).ToList();
         while (remaining.Count > 1)
@@ -154,7 +173,7 @@ public sealed class DuplicateDetector
         }
     }
 
-    private static bool Compare(Candidate reference, Candidate candidate, CancellationToken token)
+    private bool Compare(Candidate reference, Candidate candidate, CancellationToken token)
     {
         using var referenceStream = OpenForVerification(reference);
         using var candidateStream = OpenForVerification(candidate);
@@ -173,19 +192,20 @@ public sealed class DuplicateDetector
             candidateHash.AppendData(candidateBuffer, 0, candidateCount);
             if (referenceCount == 0 && candidateCount == 0) break;
         }
-        ValidateHash(reference, referenceHash);
-        ValidateHash(candidate, candidateHash);
+        ValidateHash(reference, referenceStream, referenceHash);
+        ValidateHash(candidate, candidateStream, candidateHash);
         token.ThrowIfCancellationRequested();
         return equal;
     }
 
-    private static FileStream OpenForVerification(Candidate candidate)
+    private FileStream OpenForVerification(Candidate candidate)
     {
         FileStream? stream = null;
         try
         {
             EnsureUnchanged(candidate);
             stream = File.Open(candidate.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            ValidateIdentity(candidate, stream);
             if (stream.Length != candidate.Size) throw new ScanFileChangedException();
             return stream;
         }
@@ -202,26 +222,27 @@ public sealed class DuplicateDetector
         catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception)) { throw new VerificationFailure(candidate, exception); }
     }
 
-    private static void ValidateHash(Candidate candidate, IncrementalHash hash)
+    private void ValidateHash(Candidate candidate, FileStream stream, IncrementalHash hash)
     {
         try
         {
             EnsureUnchanged(candidate);
+            ValidateIdentity(candidate, stream);
             if (Convert.ToHexString(hash.GetHashAndReset()) != candidate.ContentHash) throw new ScanFileChangedException();
         }
         catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception)) { throw new VerificationFailure(candidate, exception); }
     }
 
-    private sealed record Candidate(string Path, long Size, DateTime LastWriteUtc, string? ContentHash = null);
+    private void ValidateIdentity(Candidate candidate, FileStream stream)
+    {
+        if (candidate.Identity is { } expected && _identityProvider!.ReadIdentity(stream) != expected)
+            throw new ScanFileChangedException();
+    }
+
+    private sealed record Candidate(string Path, long Size, DateTime LastWriteUtc, string? ContentHash = null, FileIdentity? Identity = null);
     private sealed class VerificationFailure(Candidate file, Exception inner) : IOException("Scan verification failed.", inner)
     {
         public Candidate File { get; } = file;
-    }
-
-    private static string ComputeHash(string filePath, CancellationToken cancellationToken, long? maxBytes = null)
-    {
-        using var stream = File.OpenRead(filePath);
-        return ComputeHash(stream, cancellationToken, maxBytes);
     }
 
     internal static string ComputeHash(Stream stream, CancellationToken cancellationToken, long? maxBytes = null)

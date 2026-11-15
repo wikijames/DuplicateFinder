@@ -88,6 +88,13 @@ public sealed class WindowsCleanupSession : IDisposable
             throw new IOException("Cleanup requires absolute local paths. Rescan before cleanup.");
         }
 
+        // Windows normalization can erase these suffixes, so inspect the input first.
+        if (path.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Skip(1)
+            .Any(segment => segment is not "." and not ".." && (segment.EndsWith(' ') || segment.EndsWith('.'))))
+        {
+            throw new IOException("Cleanup does not accept trailing-dot or trailing-space path aliases.");
+        }
+
         var fullPath = Path.GetFullPath(path);
         if (fullPath.Length < 4 || fullPath[1] != ':' || fullPath[2] != '\\' ||
             fullPath.AsSpan(2).Contains(':') ||
@@ -161,9 +168,11 @@ public sealed class WindowsCleanupSession : IDisposable
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (_destinations.Count != _targets.Count) throw new InvalidOperationException("Recovery destinations are not prepared.");
+        if (_keep is not null) CheckAttributes(_keep.SafeFileHandle, directory: false);
         for (var index = 0; index < _targets.Count; index++)
         {
-            var name = Encoding.Unicode.GetBytes(_destinations[index]);
+            CheckAttributes(_targets[index].SafeFileHandle, directory: false);
+            var name = Encoding.Unicode.GetBytes(NativePath(_destinations[index]));
             var nameOffset = Marshal.OffsetOf<RenameInformation>(nameof(RenameInformation.FileName)).ToInt32();
             var lengthOffset = Marshal.OffsetOf<RenameInformation>(nameof(RenameInformation.FileNameLength)).ToInt32();
             var buffer = new byte[Math.Max(Marshal.SizeOf<RenameInformation>(), nameOffset + name.Length + 2)];
@@ -218,7 +227,7 @@ public sealed class WindowsCleanupSession : IDisposable
 
     private static SafeFileHandle OpenHandle(string path, uint access, FileShare share, uint flags)
     {
-        var handle = CreateFile(path, access, share, IntPtr.Zero, OpenExisting, flags, IntPtr.Zero);
+        var handle = CreateFile(NativePath(path), access, share, IntPtr.Zero, OpenExisting, flags, IntPtr.Zero);
         if (handle.IsInvalid)
         {
             var error = Marshal.GetLastWin32Error();
@@ -241,15 +250,21 @@ public sealed class WindowsCleanupSession : IDisposable
         {
             throw new IOException("Linked files and directories cannot be used for cleanup. Rescan before cleanup.");
         }
+        if (!directory && information.NumberOfLinks != 1)
+        {
+            throw new IOException("Hard-linked files are excluded from cleanup and restore.");
+        }
     }
 
     internal void DeleteTargets()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (!_permanentDeletion) throw new InvalidOperationException("This session does not authorize permanent deletion.");
+        if (_keep is not null) CheckAttributes(_keep.SafeFileHandle, directory: false);
         // Every validated file remains locked; no path is reopened for deletion.
         foreach (var target in _targets)
         {
+            CheckAttributes(target.SafeFileHandle, directory: false);
             byte deleteFile = 1;
             if (!SetFileInformationByHandle(target.SafeFileHandle, FileDispositionInformation, ref deleteFile, 1))
             {
@@ -258,6 +273,8 @@ public sealed class WindowsCleanupSession : IDisposable
             }
         }
     }
+
+    private static string NativePath(string path) => path.Length >= 260 ? @"\\?\" + path : path;
 
     public void Dispose()
     {
