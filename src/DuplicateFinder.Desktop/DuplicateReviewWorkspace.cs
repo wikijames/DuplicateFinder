@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using DuplicateFinder.Core;
 
 namespace DuplicateFinder.Desktop;
@@ -14,6 +15,7 @@ public sealed class DuplicateReviewWorkspace
     public DuplicateReviewSelection? Selection { get; private set; }
     public DuplicateCleanupOperation? CleanupOperation { get; private set; }
     public DuplicateAction CleanupAction { get; private set; } = DuplicateAction.Quarantine;
+    public string? CleanupUnavailableReason { get; private set; }
 
     public void SetCleanupAction(DuplicateAction action)
     {
@@ -23,6 +25,7 @@ public sealed class DuplicateReviewWorkspace
         }
         CleanupAction = action;
         CleanupOperation = null;
+        CleanupUnavailableReason = null;
         if (Selection is not null) UpdateOperation();
     }
 
@@ -37,6 +40,7 @@ public sealed class DuplicateReviewWorkspace
     {
         Selection = null;
         CleanupOperation = null;
+        CleanupUnavailableReason = null;
         if (group is null) return;
         if (!Groups.Contains(group))
         {
@@ -53,6 +57,7 @@ public sealed class DuplicateReviewWorkspace
         var group = Selection?.Group ?? throw new InvalidOperationException("Select a duplicate group first.");
         Selection = null;
         CleanupOperation = null;
+        CleanupUnavailableReason = null;
         Selection = new DuplicateReviewSelection(group, path);
         _keepChoices[group] = path;
         UpdateOperation();
@@ -61,8 +66,19 @@ public sealed class DuplicateReviewWorkspace
     private void UpdateOperation()
     {
         var selection = Selection!;
+        CleanupUnavailableReason = null;
         // Mirror the bounded Windows cleanup limit; larger groups remain reviewable.
-        if (selection.RemoveFilePaths.Count > 128 || string.IsNullOrWhiteSpace(selection.Group.ContentHash)) return;
+        if (selection.RemoveFilePaths.Count > 128 || string.IsNullOrWhiteSpace(selection.Group.ContentHash))
+        {
+            CleanupUnavailableReason = "Review only: cleanup requires a scan fingerprint and at most 128 removal targets.";
+            return;
+        }
+        if (CleanupAction == DuplicateAction.Quarantine && selection.Group.FilePaths.Select(Path.GetPathRoot)
+            .Distinct(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal).Count() > 1)
+        {
+            CleanupUnavailableReason = "Review only in quarantine mode: all files in this group must be on the same drive.";
+            return;
+        }
         var plan = new DuplicateCleanupPlan(selection, CleanupAction);
         CleanupOperation = new DuplicateCleanupOperation(new DuplicateCleanupExecution(plan));
     }
@@ -73,5 +89,6 @@ public sealed class DuplicateReviewWorkspace
         Selection = null;
         CleanupOperation = null;
         _keepChoices.Clear();
+        CleanupUnavailableReason = null;
     }
 }

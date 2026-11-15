@@ -293,10 +293,13 @@ public sealed class WindowsCleanupStrategy
 public sealed class DuplicateScanSummary
 {
     public DuplicateScanSummary(string rootPath, IReadOnlyList<DuplicateGroup> groups, ScanIssueSummary? issues = null)
+        : this(new[] { rootPath }, groups, issues) { }
+
+    public DuplicateScanSummary(IReadOnlyList<string> rootPaths, IReadOnlyList<DuplicateGroup> groups, ScanIssueSummary? issues = null)
     {
-        if (string.IsNullOrWhiteSpace(rootPath))
+        if (rootPaths is null || rootPaths.Count == 0 || rootPaths.Any(string.IsNullOrWhiteSpace))
         {
-            throw new ArgumentException("A root path is required.", nameof(rootPath));
+            throw new ArgumentException("At least one root path is required.", nameof(rootPaths));
         }
 
         if (groups is null)
@@ -304,7 +307,8 @@ public sealed class DuplicateScanSummary
             throw new ArgumentNullException(nameof(groups));
         }
 
-        RootPath = rootPath;
+        RootPaths = rootPaths.ToList().AsReadOnly();
+        RootPath = RootPaths[0];
         Issues = issues ?? new ScanIssueSummary(0, 0, 0);
         Groups = groups.OrderBy(group => group.FilePaths.FirstOrDefault() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
         TotalDuplicateGroups = Groups.Count;
@@ -313,6 +317,8 @@ public sealed class DuplicateScanSummary
     }
 
     public string RootPath { get; }
+
+    public IReadOnlyList<string> RootPaths { get; }
 
     public IReadOnlyList<DuplicateGroup> Groups { get; }
 
@@ -430,20 +436,23 @@ public sealed class DuplicateScanCoordinator
     public DuplicateScanCoordinator(IFileIdentityProvider? identityProvider) => _identityProvider = identityProvider;
 
     public DuplicateScanSummary Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrWhiteSpace(rootPath))
-        {
-            throw new ArgumentException("A root path is required.", nameof(rootPath));
-        }
+        => Scan(new[] { rootPath }, options, cancellationToken);
 
+    public DuplicateScanSummary Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var roots = ScanRoots.Normalize(rootPaths);
         var detector = new DuplicateDetector(_identityProvider);
-        var result = detector.Scan(rootPath, options ?? new ScanOptions(), cancellationToken);
-        return new DuplicateScanSummary(rootPath, result.Groups, result.Issues);
+        var result = detector.Scan(roots, options ?? new ScanOptions(), cancellationToken);
+        return new DuplicateScanSummary(roots, result.Groups, result.Issues);
     }
 
     public DuplicateScanReport CreateReport(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
+        => CreateReport(new[] { rootPath }, options, cancellationToken);
+
+    public DuplicateScanReport CreateReport(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
     {
-        var summary = Scan(rootPath, options, cancellationToken);
-        return new DuplicateScanReport(rootPath, summary);
+        var summary = Scan(rootPaths, options, cancellationToken);
+        return new DuplicateScanReport(summary.RootPath, summary);
     }
 }

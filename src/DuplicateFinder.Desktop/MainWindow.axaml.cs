@@ -30,10 +30,12 @@ public partial class MainWindow : Window
         KeepFileComboBox.SelectionChanged += KeepFileComboBox_SelectionChanged;
         FileTypeBox.ItemsSource = FileTypePreset.CommonTypes;
         FileTypeBox.SelectedIndex = 0;
+        ConfigureFolderDrop();
     }
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
     {
+        if (SetupIsBusy) return;
         try
         {
             await BrowseForRootAsync();
@@ -48,8 +50,8 @@ public partial class MainWindow : Window
     {
         var pickerOptions = new FolderPickerOpenOptions
         {
-            Title = "Select a folder to scan",
-            AllowMultiple = false
+            Title = "Select folders to scan",
+            AllowMultiple = true
         };
 
         var startFolder = RootPathBox.Text?.Trim();
@@ -59,14 +61,7 @@ public partial class MainWindow : Window
         }
 
         var folders = await StorageProvider.OpenFolderPickerAsync(pickerOptions);
-        var selectedPath = folders.FirstOrDefault()?.Path.LocalPath;
-        if (string.IsNullOrWhiteSpace(selectedPath))
-        {
-            return;
-        }
-
-        RootPathBox.Text = selectedPath;
-        ClearCurrentResults("Folder selected. Choose extensions or scan all file types.");
+        if (folders.Count > 0) AddScanFolders(folders.Select(folder => folder.TryGetLocalPath() ?? throw new ArgumentException("Only local folders are supported.")));
     }
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
@@ -81,7 +76,7 @@ public partial class MainWindow : Window
 
     private void InvalidateScanSetup()
     {
-        if (_workspace.Groups.Count > 0 && !_cleanupInProgress && _scanCancellation is null)
+        if (_hasScanResults && !_cleanupInProgress && _scanCancellation is null)
         {
             ClearCurrentResults("Scan setup changed. Scan again before reviewing removal.");
         }
@@ -114,7 +109,7 @@ public partial class MainWindow : Window
     private async void CleanupButton_Click(object sender, RoutedEventArgs e)
     {
         var operation = _workspace.CleanupOperation;
-        if (operation is null || _cleanupInProgress || _scanCancellation is not null)
+        if (operation is null || SetupIsBusy)
         {
             StatusText.Text = "Select a duplicate group and keep file before reviewing removal.";
             return;
@@ -191,7 +186,7 @@ public partial class MainWindow : Window
 
     private async Task TryScanCurrentRootAsync()
     {
-        if (_scanCancellation is not null || _cleanupInProgress)
+        if (_scanCancellation is not null || _cleanupInProgress || _setupDialogOpen)
         {
             return;
         }
@@ -221,8 +216,11 @@ public partial class MainWindow : Window
 
     private void SetScanInProgress(bool scanning)
     {
-        var busy = scanning || _cleanupInProgress;
+        var busy = scanning || _cleanupInProgress || _setupDialogOpen;
         RootPathBox.IsEnabled = !busy;
+        AddFolderButton.IsEnabled = !busy;
+        ManageFoldersButton.IsEnabled = !busy;
+        ScanSettingsButton.IsEnabled = !busy;
         ExtensionsBox.IsEnabled = !busy;
         FileTypeBox.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
@@ -238,33 +236,30 @@ public partial class MainWindow : Window
 
     private async Task ScanCurrentRootAsync(CancellationToken cancellationToken)
     {
-        var rootPath = RootPathBox.Text?.Trim();
-        if (string.IsNullOrWhiteSpace(rootPath))
-        {
-            ClearCurrentResults("Enter a valid scan root directory first.");
-            return;
-        }
-
-        if (!Directory.Exists(rootPath))
-        {
-            ClearCurrentResults("Scan directory was not found.");
-            return;
-        }
-
+        string[] roots;
         ScanOptions options;
         try
         {
-            options = ScanSetup.CreateOptions((FileTypePreset)FileTypeBox.SelectedItem!, ExtensionsBox.Text);
+            if (!string.IsNullOrWhiteSpace(RootPathBox.Text)) AddScanFolders(new[] { RootPathBox.Text.Trim() });
+            if (_scanFolders.Folders.Count == 0) throw new ArgumentException("Select at least one folder.");
+            roots = _scanFolders.Folders.ToArray();
+            options = ScanSetup.CreateOptions((FileTypePreset)FileTypeBox.SelectedItem!, ExtensionsBox.Text, _scanFilters);
+            if (roots.Any(root => !Directory.Exists(root))) throw new DirectoryNotFoundException();
+        }
+        catch (DirectoryNotFoundException)
+        {
+            ClearCurrentResults("A selected scan folder was not found. Update the folder selection.");
+            return;
         }
         catch (ArgumentException)
         {
-            ClearCurrentResults("Choose All files, or enter custom extensions such as .txt, .jpg or .pdf separated by commas.");
+            ClearCurrentResults("Check selected folders, extensions and scan settings. Custom extensions cannot be blank.");
             return;
         }
 
         var coordinator = new DuplicateScanCoordinator(OperatingSystem.IsWindows() ? new WindowsFileIdentityProvider() : null);
         ClearCurrentResults("Scanning...");
-        var report = await Task.Run(() => coordinator.CreateReport(rootPath, options, cancellationToken), cancellationToken);
+        var report = await Task.Run(() => coordinator.CreateReport(roots, options, cancellationToken), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         var summary = report.Summary;
 
@@ -277,10 +272,12 @@ public partial class MainWindow : Window
         {
             ClearCurrentResults(report.StatusMessage);
             ShowScanIssues(report);
+            _hasScanResults = true;
             return;
         }
 
         _workspace.Load(summary.Groups);
+        _hasScanResults = true;
         _scanCompletionStatus = report.StatusMessage;
         ShowScanIssues(report);
         ResultsList.ItemsSource = summary.Groups.Select(group => new DuplicateGroupItem(group)).ToList();
@@ -300,6 +297,7 @@ public partial class MainWindow : Window
     private void ClearCurrentResults(string statusMessage)
     {
         _scanCompletionStatus = null;
+        _hasScanResults = false;
         ScanWarningText.IsVisible = false;
         ScanWarningText.Text = string.Empty;
         GroupCountText.Text = "0";
@@ -345,7 +343,7 @@ public partial class MainWindow : Window
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy;
         ReviewText.Text = _workspace.CleanupOperation is null
-            ? "Review only: cleanup requires a scan fingerprint and at most 128 removal targets."
+            ? _workspace.CleanupUnavailableReason ?? "This selection is review-only."
             : $"This group: keep 1 file, remove {selection.RemoveFilePaths.Count}. Other groups are unaffected.";
         StatusText.Text = _scanCompletionStatus ?? "Review the selected group. Nothing is removed until you confirm.";
     }
@@ -355,7 +353,7 @@ public partial class MainWindow : Window
         var quarantine = operation.Action == DuplicateAction.Quarantine;
         var cancelButton = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
         var confirmButton = new Button { Content = quarantine ? "Move to quarantine" : "Permanently delete selected" };
-        var destinationBox = new TextBox { Text = RootPathBox.Text?.Trim() };
+        var destinationBox = new TextBox { Text = Path.GetDirectoryName(operation.KeepPath) };
         AutomationProperties.SetAutomationId(destinationBox, "QuarantineDestinationBox");
         AutomationProperties.SetName(destinationBox, "Quarantine destination folder");
         var validationText = new TextBlock { TextWrapping = TextWrapping.Wrap };
@@ -436,7 +434,7 @@ public partial class MainWindow : Window
 
     private async void RestoreBatchButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (_cleanupInProgress || _scanCancellation is not null) return;
+        if (SetupIsBusy) return;
         _cleanupInProgress = true;
         SetScanInProgress(false);
         try

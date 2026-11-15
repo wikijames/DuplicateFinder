@@ -36,8 +36,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 - [x] Add common file-type presets with visible extension lists and a custom-extension option, while retaining exact matching.
 
-- [ ] Add multiple scan roots and folder drag/drop, with duplicate/overlapping-root handling.
-- [ ] Expose supported size, hidden-file and exclusion options with clear defaults.
+- [x] Add multiple scan roots and folder drag/drop, with duplicate/overlapping-root handling. Native Explorer drag/drop remains a manual release check; see [scan controls and validation](multiple-scan-folders.md).
+- [x] Expose supported size, hidden-file and exclusion options with clear defaults.
 - [ ] Add group sorting/search and selective removal if needed; keep one file protected in every reviewed group.
 - [ ] Add a bounded, safe preview implementation for supported formats; unsupported files retain metadata-only details.
 - [ ] Show measured scan progress/stages and counts without inventing a completion percentage.
@@ -69,6 +69,6 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## UI direction and provenance
 
-Use the supplied screenshots as workflow references: straightforward scan setup, then enough horizontal space to inspect duplicate groups and file details. The implementation uses original Avalonia layouts, text and styling. It does not reuse another application's branding, icons, artwork or proprietary assets. File-details preview, drag/drop, paid upgrades, similarity modes and automatic selection are not implied by the current layout.
+Use the supplied screenshots as workflow references: straightforward scan setup, then enough horizontal space to inspect duplicate groups and file details. The implementation uses original Avalonia layouts, text and styling. It does not reuse another application's branding, icons, artwork or proprietary assets. File-details preview, paid upgrades, similarity modes and automatic selection are not implied by the current layout.
 
 Each feature branch should implement and validate one coherent part of this checklist, then request review against `development`. Remaining release gates stay visible rather than being counted as complete because the screen looks finished.

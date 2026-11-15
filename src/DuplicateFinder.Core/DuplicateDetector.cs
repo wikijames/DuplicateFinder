@@ -23,25 +23,29 @@ public sealed class DuplicateDetector
     public IReadOnlyList<DuplicateGroup> FindDuplicates(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
         => Scan(rootPath, options, cancellationToken).Groups;
 
+    public IReadOnlyList<DuplicateGroup> FindDuplicates(IEnumerable<string> roots, ScanOptions? options = null, CancellationToken cancellationToken = default)
+        => Scan(roots, options, cancellationToken).Groups;
+
     public DuplicateDetectionResult Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
+        => Scan(new[] { rootPath }, options, cancellationToken);
+
+    public DuplicateDetectionResult Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
-
-        if (string.IsNullOrWhiteSpace(rootPath))
+        var roots = ScanRoots.Normalize(rootPaths);
+        foreach (var root in roots)
         {
-            throw new ArgumentException("Root path is required.", nameof(rootPath));
-        }
-
-        if (!Directory.Exists(rootPath))
-        {
-            throw new DirectoryNotFoundException($"Directory '{rootPath}' was not found.");
+            if (!Directory.Exists(root)) throw new DirectoryNotFoundException("A selected scan folder was not found.");
         }
 
         var diagnostics = new ScanDiagnostics();
+        var seenPaths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+        var seenIdentities = new HashSet<FileIdentity>();
         var sizeGroups = new Dictionary<long, List<Candidate>>();
-        foreach (var path in _scanner.EnumerateFiles(rootPath, options ?? new ScanOptions(), diagnostics, cancellationToken))
+        foreach (var path in EnumerateRoots(roots, options ?? new ScanOptions(), diagnostics, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (!seenPaths.Add(path)) continue;
             try
             {
                 var info = new FileInfo(path);
@@ -58,6 +62,7 @@ public sealed class DuplicateDetector
                         diagnostics.HardLinkExcluded(path);
                         continue;
                     }
+                    if (!seenIdentities.Add(identity.Value)) continue;
                 }
                 Add(sizeGroups, info.Length, new Candidate(path, info.Length, info.LastWriteTimeUtc, Identity: identity));
             }
@@ -97,6 +102,25 @@ public sealed class DuplicateDetector
 
         cancellationToken.ThrowIfCancellationRequested();
         return new DuplicateDetectionResult(duplicateGroups.OrderBy(group => group.FilePaths[0], StringComparer.OrdinalIgnoreCase).ToArray(), diagnostics.Snapshot());
+    }
+
+    private IEnumerable<string> EnumerateRoots(IReadOnlyList<string> roots, ScanOptions options, ScanDiagnostics diagnostics, CancellationToken token)
+    {
+        options.Validate();
+        foreach (var root in roots)
+        {
+            token.ThrowIfCancellationRequested();
+            using var enumerator = _scanner.EnumerateFiles(root, options, diagnostics, token).GetEnumerator();
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                var moved = false;
+                try { moved = enumerator.MoveNext(); }
+                catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception)) { diagnostics.DirectoryFailed(root); }
+                if (!moved) break;
+                yield return enumerator.Current;
+            }
+        }
     }
 
     private static void Add<TKey>(Dictionary<TKey, List<Candidate>> groups, TKey key, Candidate candidate) where TKey : notnull

@@ -29,16 +29,21 @@
             </Border>
         </Grid>
 
-        <Border Grid.Row="1" Background="#1A2632" BorderBrush="#304150" BorderThickness="1" CornerRadius="10" Padding="18">
+        <Border Grid.Row="1" Name="ScanSetupPanel" Background="#1A2632" BorderBrush="#304150" BorderThickness="1" CornerRadius="10" Padding="18">
             <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="10">
-                <TextBlock Text="Scan a folder" FontSize="16" FontWeight="SemiBold" />
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8">
-                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder path" VerticalContentAlignment="Center"
-                             AutomationProperties.Name="Folder to scan" TextChanged="ScanSetup_Changed" />
-                    <Button Grid.Column="1" Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
-                    <Button Grid.Column="2" Name="ScanButton" Content="Scan folder" Click="ScanButton_Click"
+                <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <TextBlock Text="Scan folders" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Button Grid.Column="1" Name="ManageFoldersButton" Content="Folders (0)" Click="ManageFoldersButton_Click" />
+                    <Button Grid.Column="2" Name="ScanSettingsButton" Content="Scan settings" Click="ScanSettingsButton_Click" />
+                </Grid>
+                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder path or drop folders here" VerticalContentAlignment="Center"
+                             AutomationProperties.Name="Folder to add" TextChanged="ScanSetup_Changed" />
+                    <Button Grid.Column="1" Name="AddFolderButton" Content="Add" Click="AddFolderButton_Click" />
+                    <Button Grid.Column="2" Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
+                    <Button Grid.Column="3" Name="ScanButton" Content="Scan folders" Click="ScanButton_Click"
                             Background="#77D4C3" Foreground="#102722" FontWeight="SemiBold" />
-                    <Button Grid.Column="3" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" />
+                    <Button Grid.Column="4" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" />
                 </Grid>
                 <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
                     <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
