@@ -20,6 +20,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\DuplicateFinder.Core\DuplicateFinder.Core.csproj" />
+    <ProjectReference Include="..\..\src\DuplicateFinder.Desktop\DuplicateFinder.Desktop.csproj" />
   </ItemGroup>
 
 </Project>

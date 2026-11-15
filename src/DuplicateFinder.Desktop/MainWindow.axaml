@@ -9,10 +9,11 @@
         Height="620">
     <Grid RowDefinitions="Auto,Auto,*" Margin="12" ColumnDefinitions="*">
         <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,0,12">
-            <TextBox Name="RootPathBox" Width="560" PlaceholderText="Scan root (safe demo directory)" />
+            <TextBox Name="RootPathBox" Width="460" PlaceholderText="Scan root (safe demo directory)" />
             <Button Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
             <Button Name="ScanButton" Content="Scan" Click="ScanButton_Click" />
-            <Button Name="CleanupButton" Content="Delete Duplicate" Click="CleanupButton_Click" />
+            <Button Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" />
+            <Button Name="CleanupButton" Content="Delete Duplicate" Click="CleanupButton_Click" IsEnabled="False" />
         </StackPanel>
 
         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="20" Margin="0,0,0,12">

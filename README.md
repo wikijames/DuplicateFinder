@@ -39,6 +39,8 @@ This project implements general-purpose file management functionality using orig
 
 ## Getting started
 
+Desktop scanning supports cancellation. Cleanup requires explicit confirmation and rechecks the reviewed contents before guarded Windows permanent deletion. See [diagnostics and cleanup safety](docs/diagnostics-and-cleanup-safety.md) for validation and current limits, including unsupported recycle-bin execution and groups above 128 removal targets.
+
 ```powershell
 dotnet build
 dotnet test
@@ -47,6 +49,8 @@ dotnet test
 The project is early-stage; these commands validate the foundation, not a complete product.
 
 ## Phase-based backlog and issue plan
+
+See the [source-based progress review](docs/roadmap-progress.md) for confirmed work, outstanding gaps, and the next small steps.
 
 This README acts as the working backlog until the corresponding GitHub Issues are created for each milestone. Use these ticket identifiers in commit messages, branch names, and pull request descriptions when the work is ready.
 
