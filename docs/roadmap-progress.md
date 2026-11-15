@@ -20,10 +20,10 @@ The earlier estimate of 56% overall gave equal weight to roadmap items and relie
 
 Local UI checks confirmed cancellation during a synthetic scan, restoration of controls afterward, changing the keep selection in a three-copy group, confirmation and Cancel, and stale-result rejection. The desktop creates its plan directly from the review selection, preserving the chosen keep file and including all displayed removal targets.
 
-Scans now byte-verify hash candidates and report encountered file/folder failures without discarding healthy groups or claiming complete success. The UI retains a persistent incomplete-scan warning. Cleanup still revalidates scan fingerprints and bytes through protected Windows handles. The 129-test suite uses generated fixtures; no personal files are used. See [verified scans](verified-scans.md) and [guarded quarantine](guarded-quarantine.md) for behavior and remaining release boundaries.
+Scans now byte-verify hash candidates and report encountered file/folder failures without discarding healthy groups or claiming complete success. The UI retains a persistent incomplete-scan warning. Cleanup still revalidates scan fingerprints and bytes through protected Windows handles. The 179-test suite uses generated fixtures; no personal files are used. See [verified scans](verified-scans.md) and [guarded quarantine](guarded-quarantine.md) for behavior and remaining release boundaries.
 
-1. Review and publish the hard-link-safety branch; verify hosted CI against `development`. See the [branch summary](hard-link-safety.md).
-2. Complete multi-folder scan controls, drag/drop, size and exclusion settings.
+1. Hard-link safety is merged. Review the multi-folder scan/settings phase and verify hosted CI against `development`. See [scan controls and validation](multiple-scan-folders.md).
+2. Add results search/sorting and bounded safe previews; manually validate native Explorer folder drops.
 3. Complete scan progress, previews and accessibility; measure synthetic benchmarks before tuning performance.
 4. Continue release diagnostics, storage-failure testing, packaging and security review without treating a feature branch as a full release certification.
 
