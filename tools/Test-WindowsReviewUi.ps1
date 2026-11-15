@@ -124,7 +124,17 @@ try {
     Invoke-Control CleanupButton
     Assert-ProtectedFile
     Invoke-Control CancelCleanupButton
-    foreach ($theme in @('Light', 'Dark', 'System')) { Select-Choice AppearanceBox $theme }
+    foreach ($theme in @('Light', 'Dark', 'System')) {
+        Select-Choice AppearanceBox $theme
+        Invoke-Control DiagnosticsButton
+        if ((Find-Control DiagnosticsStatusText).Current.Name -ne 'Recording Off') { throw 'Diagnostics must remain off across theme changes.' }
+        $themeDialog = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Local diagnostics'))
+        $themeDialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(420, 280)
+        if ((Find-Control StartDiagnosticsButton).Current.IsOffscreen) { throw 'Diagnostics action clipped in a theme.' }
+        $themeDialog.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+        Start-Sleep -Milliseconds 150
+    }
     (Find-Control RootPathBox).SetFocus()
     $keys = New-Object -ComObject WScript.Shell
     $keys.SendKeys('^f')
@@ -157,8 +167,32 @@ try {
     Invoke-Control DiagnosticsButton
     $dialog = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Local diagnostics'))
-    $dialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(480, 360)
+    $dialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(420, 280)
     if ((Find-Control StartDiagnosticsButton).Current.IsOffscreen) { throw 'Diagnostics actions clipped at compact dialog size.' }
+    if ((Find-Control DiagnosticsStatusText).Current.Name -ne 'Recording Off') { throw 'Diagnostics default status incorrect.' }
+    $size = Find-Control DiagnosticsSizeLimitBox
+    $size.GetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView()
+    $size.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Expand()
+    Start-Sleep -Milliseconds 100
+    $options = $size.FindAll([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
+    if ((($options | ForEach-Object { $_.Current.Name }) -join ',') -ne '16 KiB,64 KiB') { throw 'Existing diagnostic size options changed.' }
+    $size.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Collapse()
+    foreach ($id in @('DiagnosticsPrivacyExpander', 'DiagnosticsRetentionExpander')) {
+        $expander = Find-Control $id
+        if ([string]::IsNullOrWhiteSpace($expander.Current.Name)) { throw 'Diagnostics expander has no accessible name.' }
+        $header = $expander.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::IsKeyboardFocusableProperty, $true))
+        if ($null -eq $header) { throw 'Diagnostics expander header is not keyboard accessible.' }
+        $header.GetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView()
+        $header.SetFocus()
+        $keys.SendKeys(' ')
+        Start-Sleep -Milliseconds 100
+        if ($expander.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Expanded) { throw 'Space did not expand diagnostics details.' }
+        $keys.SendKeys(' ')
+        Start-Sleep -Milliseconds 100
+        if ($expander.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Collapsed) { throw 'Space did not collapse diagnostics details.' }
+    }
     $close = $dialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Close'))
     $close.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
@@ -185,7 +219,7 @@ try {
         $control = Find-Control $id
         if ($control.Current.IsOffscreen -or $control.Current.BoundingRectangle.Height -lt 25) { throw 'Persistent notice clipped the review workspace.' }
     }
-    'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, invalid settings, diagnostics defaults, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
+    'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, settings, diagnostics defaults/size options/keyboard expanders, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
 }
 finally {
     if ($null -ne $script:reviewWindow) {

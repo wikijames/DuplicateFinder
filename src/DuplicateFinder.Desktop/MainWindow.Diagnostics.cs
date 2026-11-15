@@ -3,6 +3,8 @@ using System.IO;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Shapes;
+using Avalonia.Automation;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -16,17 +18,30 @@ public partial class MainWindow
     private bool _diagnosticsStopping;
     private bool _diagnosticsDrained;
     private readonly Avalonia.Threading.DispatcherTimer _diagnosticsTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
+    private Action? _refreshDiagnosticsView;
+    private DiagnosticRecordingState? _lastDiagnosticsState;
+    private bool _diagnosticsHeaderInitialized;
+
+    private static void ApplyDiagnosticsTone(StyledElement element, string tone)
+    {
+        element.Classes.Set("recording", tone == "recording");
+        element.Classes.Set("attention", tone == "attention");
+    }
 
     private void UpdateDiagnosticsButton()
     {
-        DiagnosticsButton.Content = _diagnostics?.State switch
+        var state = _diagnostics?.State;
+        if (!_diagnosticsHeaderInitialized || _lastDiagnosticsState != state)
         {
-            DiagnosticRecordingState.Recording => "Diagnostics: on",
-            DiagnosticRecordingState.WriteFailed => "Diagnostics: failed",
-            DiagnosticRecordingState.SizeLimitReached or DiagnosticRecordingState.QueueLimitReached => "Diagnostics: limit",
-            _ => "Diagnostics: off"
-        };
-        if (_diagnostics?.State != DiagnosticRecordingState.Recording) _diagnosticsTimer.Stop();
+            var presentation = DiagnosticsStatusPresentation.From(state);
+            DiagnosticsLabel.Text = presentation.Header;
+            AutomationProperties.SetName(DiagnosticsButton, "Local diagnostics; " + presentation.Header);
+            ApplyDiagnosticsTone(DiagnosticsIndicator, presentation.Tone);
+            _lastDiagnosticsState = state;
+            _diagnosticsHeaderInitialized = true;
+        }
+        _refreshDiagnosticsView?.Invoke();
+        if (state != DiagnosticRecordingState.Recording) _diagnosticsTimer.Stop();
     }
 
     protected override async void OnClosing(WindowClosingEventArgs e)
@@ -56,42 +71,132 @@ public partial class MainWindow
         SetScanInProgress(false);
         try
         {
-            var status = new TextBlock { Text = "State: " + (_diagnostics?.State.ToString() ?? "Off"), TextWrapping = TextWrapping.Wrap };
+            var status = new TextBlock { FontSize = 20, FontWeight = FontWeight.SemiBold, TextWrapping = TextWrapping.Wrap };
+            AutomationProperties.SetLiveSetting(status, AutomationLiveSetting.Polite);
+            var indicator = new Ellipse();
+            indicator.Classes.Add("diagnosticsIndicator");
+            var statusHeading = new Grid { ColumnDefinitions = new ColumnDefinitions("Auto,*"), ColumnSpacing = 12 };
+            statusHeading.Children.Add(indicator);
+            Grid.SetColumn(status, 1);
+            statusHeading.Children.Add(status);
+            var statusCard = new Border
+            {
+                Child = new StackPanel
+                {
+                    Spacing = 8,
+                    Children = { statusHeading, new TextBlock { Text = "Record technical information locally to help investigate application issues.", TextWrapping = TextWrapping.Wrap } }
+                }
+            };
+            statusCard.Classes.Add("reviewSection");
+            statusCard.Classes.Add("diagnosticsStatus");
             var limit = new ComboBox { ItemsSource = new[] { "16 KiB", "64 KiB" }, SelectedIndex = 0, Width = 160 };
-            Avalonia.Automation.AutomationProperties.SetName(limit, "Maximum diagnostic file size");
-            var start = new Button { Content = "Choose new file and start", IsEnabled = _diagnostics?.State != DiagnosticRecordingState.Recording };
-            var stop = new Button { Content = "Stop and close file", IsEnabled = _diagnostics?.State == DiagnosticRecordingState.Recording };
+            AutomationProperties.SetName(limit, "Maximum diagnostic file size for the next recording");
+            AutomationProperties.SetAutomationId(limit, "DiagnosticsSizeLimitBox");
+            var start = new Button { Content = "Choose File & Start Recording", HorizontalAlignment = HorizontalAlignment.Left };
+            start.Classes.Add("primary");
+            var stop = new Button { Content = "Stop Recording", HorizontalAlignment = HorizontalAlignment.Left };
             var close = new Button { Content = "Close", IsDefault = true, IsCancel = true };
+            var feedback = new TextBlock { IsVisible = false, TextWrapping = TextWrapping.Wrap };
+            feedback.Bind(TextBlock.ForegroundProperty, this.GetResourceObservable("WorkspaceWarning"));
+            AutomationProperties.SetLiveSetting(feedback, AutomationLiveSetting.Polite);
             Avalonia.Automation.AutomationProperties.SetAutomationId(start, "StartDiagnosticsButton");
             Avalonia.Automation.AutomationProperties.SetAutomationId(stop, "StopDiagnosticsButton");
             Avalonia.Automation.AutomationProperties.SetAutomationId(status, "DiagnosticsStatusText");
-            var content = new StackPanel
+            AutomationProperties.SetAutomationId(feedback, "DiagnosticsFeedbackText");
+            var privacy = new Expander
             {
-                Margin = new Thickness(20), Spacing = 14,
-                Children =
+                Header = "What information is recorded?", HorizontalAlignment = HorizontalAlignment.Stretch,
+                Content = new TextBlock
                 {
-                    new TextBlock { Text = "Optional local diagnostics", FontSize = 18 },
-                    new TextBlock { Text = "Off by default, for this app session only. Records include UTC times, fixed operation names, counts and broad error categories. No paths, filenames, file content, exception messages or stack traces are recorded. Nothing is uploaded.", TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "Choose a new local file. Recording stops at the size or queue limit, or after a write failure. Existing files are never overwritten. Stop closes the file after queued records are written.", TextWrapping = TextWrapping.Wrap },
-                    new TextBlock { Text = "Retention: saved files remain until you delete them. The app never rotates or deletes logs. Choose local storage and keep only files you need; review them before sharing.", TextWrapping = TextWrapping.Wrap },
-                    status, new TextBlock { Text = "Maximum size for the next recording" }, limit
+                    Text = "Records contain a schema version, UTC timestamps, fixed operation and outcome names, optional counts and broad error categories. Scan file counts refer to files in duplicate groups.\n\nRecords exclude filenames, scanned paths, contents, exception messages and stack traces. The file picker can show your chosen location; that location is not written into diagnostic records.",
+                    TextWrapping = TextWrapping.Wrap
                 }
             };
-            content.Margin = new Thickness(0);
-            close.HorizontalAlignment = HorizontalAlignment.Right;
-            var actions = new StackPanel
+            AutomationProperties.SetAutomationId(privacy, "DiagnosticsPrivacyExpander");
+            AutomationProperties.SetName(privacy, "What information is recorded?");
+            var retention = new Expander
             {
-                Spacing = 8,
-                Children = { new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { start, stop } }, close }
+                Header = "Retention and recording limits", HorizontalAlignment = HorizontalAlignment.Stretch,
+                Content = new TextBlock
+                {
+                    Text = "Keep or delete saved files yourself. Nothing is automatically uploaded, rotated, expired or deleted.\n\nEach new recording requires a new local file; existing files are never overwritten. The selected 16 KiB or 64 KiB cap applies to that file. The queue holds at most 64 pending records. Recording stops at a file/queue limit or write failure.\n\nStop Recording closes the file after accepted records drain. Normal app close also drains accepted records. Stop before moving or sharing a file, and review it before sharing. Crashes or storage failures can leave an incomplete final record.",
+                    TextWrapping = TextWrapping.Wrap
+                }
             };
+            AutomationProperties.SetAutomationId(retention, "DiagnosticsRetentionExpander");
+            AutomationProperties.SetName(retention, "Retention and recording limits");
+            var content = new StackPanel
+            {
+                Spacing = 16,
+                Children =
+                {
+                    statusCard,
+                    new StackPanel
+                    {
+                        Spacing = 8,
+                        Children = { new TextBlock { Text = "Diagnostics are stored locally. Nothing is automatically uploaded.", TextWrapping = TextWrapping.Wrap }, privacy }
+                    },
+                    ReviewSection("Recording Settings", new StackPanel
+                    {
+                        Spacing = 8,
+                        Children =
+                        {
+                            new TextBlock { Text = "Maximum file size for the next recording", TextWrapping = TextWrapping.Wrap }, limit,
+                            new TextBlock { Text = "Off by default on every launch. Choose a new local file to record for this app session only.", TextWrapping = TextWrapping.Wrap }, feedback
+                        }
+                    }),
+                    new StackPanel
+                    {
+                        Spacing = 8,
+                        Children =
+                        {
+                            new TextBlock { Text = "Privacy and retention", FontWeight = FontWeight.SemiBold },
+                            new TextBlock { Text = "Diagnostic files remain on your device until you delete them.", TextWrapping = TextWrapping.Wrap }, retention
+                        }
+                    }
+                }
+            };
+            close.HorizontalAlignment = HorizontalAlignment.Right;
+            var actions = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 12 };
+            actions.Children.Add(start);
+            actions.Children.Add(stop);
+            Grid.SetColumn(close, 1);
+            actions.Children.Add(close);
             var dialog = CreateReviewDialog("Local diagnostics", content, actions, close);
+            dialog.MinWidth = 420;
+            dialog.MinHeight = 280;
+            if (Screens.ScreenFromWindow(this) is { } screen)
+            {
+                dialog.MaxWidth = Math.Max(dialog.MinWidth, screen.WorkingArea.Width / screen.Scaling - 32);
+                dialog.MaxHeight = Math.Max(dialog.MinHeight, screen.WorkingArea.Height / screen.Scaling - 48);
+                dialog.Width = Math.Min(700, dialog.MaxWidth);
+                dialog.Height = Math.Min(620, dialog.MaxHeight);
+            }
             var changingRecording = false;
+            void RefreshPresentation()
+            {
+                var state = _diagnostics?.State;
+                var presentation = DiagnosticsStatusPresentation.From(state);
+                status.Text = presentation.Title;
+                ApplyDiagnosticsTone(indicator, presentation.Tone);
+                ApplyDiagnosticsTone(statusCard, presentation.Tone);
+                var recording = state == DiagnosticRecordingState.Recording;
+                var stopHadFocus = stop.IsFocused;
+                start.IsVisible = !recording;
+                stop.IsVisible = recording;
+                start.IsEnabled = !changingRecording && !recording;
+                stop.IsEnabled = !changingRecording && recording;
+                close.IsEnabled = !changingRecording;
+                if (stopHadFocus && !recording && !changingRecording) start.Focus();
+            }
+            _refreshDiagnosticsView = RefreshPresentation;
+            RefreshPresentation();
             dialog.Closing += (_, args) => { if (changingRecording) args.Cancel = true; };
             start.Click += async (_, _) =>
             {
                 changingRecording = true;
-                start.IsEnabled = false;
-                close.IsEnabled = false;
+                feedback.IsVisible = false;
+                RefreshPresentation();
                 try
                 {
                     var file = await dialog.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
@@ -104,36 +209,31 @@ public partial class MainWindow
                     if (_diagnostics is not null) await _diagnostics.StopAsync();
                     _diagnostics = await SessionDiagnostics.StartAsync(path, limit.SelectedIndex == 1 ? 65536 : 16384);
                     _diagnosticsTimer.Start();
-                    status.Text = "Recording to the selected file. Stop before moving or sharing it.";
                 }
                 catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
                 {
-                    status.Text = "Could not start diagnostics. Choose a new filename in an existing local folder.";
+                    feedback.Text = "Could not start recording. Choose a new filename in an existing local folder. Existing files are never overwritten.";
+                    feedback.IsVisible = true;
                 }
                 finally
                 {
                     changingRecording = false;
                     UpdateDiagnosticsButton();
-                    start.IsEnabled = _diagnostics?.State != DiagnosticRecordingState.Recording;
-                    stop.IsEnabled = _diagnostics?.State == DiagnosticRecordingState.Recording;
-                    close.IsEnabled = true;
+                    if (_diagnostics?.State == DiagnosticRecordingState.Recording) stop.Focus(); else start.Focus();
                 }
             };
             stop.Click += async (_, _) =>
             {
                 changingRecording = true;
-                stop.IsEnabled = false;
-                close.IsEnabled = false;
+                RefreshPresentation();
                 if (_diagnostics is not null) await _diagnostics.StopAsync();
-                UpdateDiagnosticsButton();
-                status.Text = "Recording stopped. Saved files remain until you delete them.";
-                start.IsEnabled = true;
-                close.IsEnabled = true;
                 changingRecording = false;
+                UpdateDiagnosticsButton();
+                start.Focus();
             };
             close.Click += (_, _) => dialog.Close();
             await dialog.ShowDialog(this);
         }
-        finally { _setupDialogOpen = false; SetScanInProgress(false); DiagnosticsButton.Focus(); }
+        finally { _refreshDiagnosticsView = null; _setupDialogOpen = false; SetScanInProgress(false); DiagnosticsButton.Focus(); }
     }
 }

@@ -7,46 +7,56 @@
         <ResourceDictionary>
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="WorkspaceBackground">#111A23</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceForeground">#EEF3F7</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceMuted">#AAB9C7</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspacePanel">#1A2632</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceInset">#17232E</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceBorder">#304150</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceBadge">#193D3A</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceAccentText">#8EE2D4</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceAccent">#77D4C3</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceOnAccent">#102722</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceDanger">#58363B</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceOnDanger">#FFE2E2</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceWarning">#F1C777</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceSelection">#25454D</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceFocus">#9CD7FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBackground">#0D0D0F</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceForeground">#F3F3F5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceMuted">#B8B7C2</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspacePanel">#1B1B1E</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInset">#161618</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBorder">#38383F</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBadge">#202D40</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccentText">#9FCBFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccent">#2D8CF0</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnAccent">#071421</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceDanger">#793642</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnDanger">#FFF2F5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceWarning">#FFB366</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceSelection">#253244</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceFocus">#A5BCFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInput">#232326</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInputBorder">#74717F</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="WorkspaceBackground">#F1F5F8</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceForeground">#162534</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceMuted">#485B6B</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBackground">#F7F6FB</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceForeground">#353244</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceMuted">#605D70</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspacePanel">#FFFFFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceInset">#E7EEF3</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceBorder">#8295A5</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceBadge">#D3ECE5</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceAccentText">#075C50</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceAccent">#116B5D</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInset">#F0EFF5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBorder">#DDD9E8</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBadge">#EEE9FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccentText">#5941B4</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccent">#6650CE</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceOnAccent">#FFFFFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceDanger">#812D3A</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceDanger">#B4233C</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceOnDanger">#FFFFFF</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceWarning">#714900</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceSelection">#D4E9EC</SolidColorBrush>
-                    <SolidColorBrush x:Key="WorkspaceFocus">#005A9C</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceWarning">#8A4B00</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceSelection">#EAE4FF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceFocus">#5B3DB5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInput">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInputBorder">#8E8A9C</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
-        <FluentTheme />
+        <FluentTheme>
+            <FluentTheme.Palettes>
+                <ColorPaletteResources x:Key="Light" Accent="#6650CE" />
+                <ColorPaletteResources x:Key="Dark" Accent="#2D8CF0" />
+            </FluentTheme.Palettes>
+        </FluentTheme>
         <Style Selector="Window">
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="Background" Value="{DynamicResource WorkspaceBackground}" />
             <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
         </Style>
@@ -56,6 +66,24 @@
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="Ellipse.diagnosticsIndicator">
+            <Setter Property="Width" Value="8" />
+            <Setter Property="Height" Value="8" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+            <Setter Property="Fill" Value="{DynamicResource WorkspaceMuted}" />
+        </Style>
+        <Style Selector="Ellipse.diagnosticsIndicator.recording">
+            <Setter Property="Fill" Value="{DynamicResource WorkspaceAccentText}" />
+        </Style>
+        <Style Selector="Ellipse.diagnosticsIndicator.attention">
+            <Setter Property="Fill" Value="{DynamicResource WorkspaceWarning}" />
+        </Style>
+        <Style Selector="Border.diagnosticsStatus.recording">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceAccentText}" />
+        </Style>
+        <Style Selector="Border.diagnosticsStatus.attention">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceWarning}" />
         </Style>
         <Style Selector="Button.primary">
             <Setter Property="Background" Value="{DynamicResource WorkspaceAccent}" />
@@ -69,14 +97,38 @@
             <Setter Property="Foreground" Value="{DynamicResource WorkspaceMuted}" />
         </Style>
         <Style Selector="TextBlock.section">
-            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="SemiBold" />
         </Style>
         <Style Selector="Button">
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="Padding" Value="14,8" />
-            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="MinHeight" Value="38" />
             <Setter Property="CornerRadius" Value="6" />
             <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource WorkspaceInput}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceInputBorder}" />
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="MinHeight" Value="38" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="Background" Value="{DynamicResource WorkspaceInput}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceInputBorder}" />
+        </Style>
+        <Style Selector="TextBox[AcceptsReturn=True]">
+            <Setter Property="VerticalContentAlignment" Value="Top" />
         </Style>
         <Style Selector="Button:focus-visible">
             <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceFocus}" />

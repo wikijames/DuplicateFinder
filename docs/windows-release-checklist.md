@@ -35,6 +35,7 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 ## Finish Windows UI and accessibility
 
 - [x] Refine the existing review hierarchy, keep-file presentation, theme/focus styles and scrollable confirmation dialogs without changing service contracts. See [scope and synthetic UI validation](windows-ui-refinement.md).
+- [x] Refine local diagnostics status, privacy expanders and recording controls without changing the recorder or limits. See [UI behavior and actual validation coverage](opt-in-diagnostics.md#diagnostics-ui-refinement).
 
 - [x] Add common file-type presets with visible extension lists and a custom-extension option, while retaining exact matching.
 

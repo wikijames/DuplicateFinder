@@ -32,6 +32,7 @@ public partial class MainWindow : Window
         FileTypeBox.SelectedIndex = 0;
         ConfigureFolderDrop();
         _diagnosticsTimer.Tick += (_, _) => UpdateDiagnosticsButton();
+        UpdateDiagnosticsButton();
         ResultsSortBox.ItemsSource = new[] { "Name (A–Z)", "Extra-copy size (largest)", "File size (largest)", "Copy count (most)" };
         ResultsSortBox.SelectedIndex = 0;
         AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
