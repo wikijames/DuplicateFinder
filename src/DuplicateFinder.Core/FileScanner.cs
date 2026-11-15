@@ -2,6 +2,16 @@ namespace DuplicateFinder.Core;
 
 public sealed class FileScanner
 {
+    private readonly Func<string, string, EnumerationOptions, IEnumerable<string>> _enumerateFiles = Directory.EnumerateFiles;
+    private readonly Func<string, string, EnumerationOptions, IEnumerable<string>> _enumerateDirectories = Directory.EnumerateDirectories;
+
+    public FileScanner() { }
+    internal FileScanner(Func<string, string, EnumerationOptions, IEnumerable<string>> enumerateFiles,
+        Func<string, string, EnumerationOptions, IEnumerable<string>>? enumerateDirectories = null)
+    {
+        _enumerateFiles = enumerateFiles;
+        _enumerateDirectories = enumerateDirectories ?? Directory.EnumerateDirectories;
+    }
     public IEnumerable<string> EnumerateFiles(string rootPath, string searchPattern = "*", bool includeHidden = false, CancellationToken cancellationToken = default)
     {
         return EnumerateFiles(rootPath, new ScanOptions
@@ -12,6 +22,11 @@ public sealed class FileScanner
     }
 
     public IEnumerable<string> EnumerateFiles(string rootPath, ScanOptions? options, CancellationToken cancellationToken = default)
+    {
+        return EnumerateFiles(rootPath, options, new ScanDiagnostics(), cancellationToken);
+    }
+
+    internal IEnumerable<string> EnumerateFiles(string rootPath, ScanOptions? options, ScanDiagnostics diagnostics, CancellationToken cancellationToken = default)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -37,27 +52,32 @@ public sealed class FileScanner
         var enumerationOptions = new EnumerationOptions
         {
             RecurseSubdirectories = false,
-            IgnoreInaccessible = true,
+            IgnoreInaccessible = false,
+            AttributesToSkip = FileAttributes.System,
             ReturnSpecialDirectories = false
         };
 
-        foreach (var candidatePath in EnumerateCandidatePaths(rootPath, effectivePattern, options.IncludeHidden, excludedDirectoryNames, excludedPathSegments, excludedFileNames, enumerationOptions, cancellationToken))
+        foreach (var candidatePath in EnumerateCandidatePaths(rootPath, effectivePattern, options.IncludeHidden, excludedDirectoryNames, excludedPathSegments, excludedFileNames, enumerationOptions, diagnostics, cancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!options.IncludeHidden && IsHidden(candidatePath))
+            long length;
+            try
+            {
+                length = new FileInfo(candidatePath).Length;
+            }
+            catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception))
+            {
+                diagnostics.FileFailed(candidatePath);
+                continue;
+            }
+
+            if (options.MinimumSizeBytes is long minimumSize && length < minimumSize)
             {
                 continue;
             }
 
-            var fileInfo = new FileInfo(candidatePath);
-
-            if (options.MinimumSizeBytes is long minimumSize && fileInfo.Length < minimumSize)
-            {
-                continue;
-            }
-
-            if (options.MaximumSizeBytes is long maximumSize && fileInfo.Length > maximumSize)
+            if (options.MaximumSizeBytes is long maximumSize && length > maximumSize)
             {
                 continue;
             }
@@ -75,7 +95,7 @@ public sealed class FileScanner
         }
     }
 
-    private static IEnumerable<string> EnumerateCandidatePaths(string rootPath, string searchPattern, bool includeHidden, HashSet<string>? exclusionNames, HashSet<string>? excludedPathSegments, HashSet<string>? excludedFileNames, EnumerationOptions options, CancellationToken cancellationToken)
+    private IEnumerable<string> EnumerateCandidatePaths(string rootPath, string searchPattern, bool includeHidden, HashSet<string>? exclusionNames, HashSet<string>? excludedPathSegments, HashSet<string>? excludedFileNames, EnumerationOptions options, ScanDiagnostics diagnostics, CancellationToken cancellationToken)
     {
         var directories = new Stack<string>();
         directories.Push(rootPath);
@@ -86,7 +106,14 @@ public sealed class FileScanner
 
             var currentDirectory = directories.Pop();
 
-            if (!includeHidden && IsHidden(currentDirectory))
+            if (!TryGetAttributes(currentDirectory, true, diagnostics, out var directoryAttributes)) continue;
+            if ((directoryAttributes & FileAttributes.ReparsePoint) != 0)
+            {
+                diagnostics.DirectoryFailed(currentDirectory);
+                continue;
+            }
+
+            if (!includeHidden && IsHidden(currentDirectory, directoryAttributes))
             {
                 continue;
             }
@@ -101,22 +128,7 @@ public sealed class FileScanner
                 continue;
             }
 
-            IEnumerable<string> childDirectories;
-
-            try
-            {
-                childDirectories = Directory.EnumerateDirectories(currentDirectory, "*", options);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                continue;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                continue;
-            }
-
-            foreach (var childDirectory in childDirectories)
+            foreach (var childDirectory in EnumerateSafely(() => _enumerateDirectories(currentDirectory, "*", options), currentDirectory, diagnostics, cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -131,12 +143,13 @@ public sealed class FileScanner
                     continue;
                 }
 
-                if (IsReparsePoint(childDirectory))
+                if (!TryGetAttributes(childDirectory, true, diagnostics, out var childAttributes)) continue;
+                if ((childAttributes & FileAttributes.ReparsePoint) != 0)
                 {
                     continue;
                 }
 
-                if (!includeHidden && IsHidden(childDirectory))
+                if (!includeHidden && IsHidden(childDirectory, childAttributes))
                 {
                     continue;
                 }
@@ -144,26 +157,12 @@ public sealed class FileScanner
                 directories.Push(childDirectory);
             }
 
-            IEnumerable<string> files;
-
-            try
-            {
-                files = Directory.EnumerateFiles(currentDirectory, searchPattern, options);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                continue;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                continue;
-            }
-
-            foreach (var file in files)
+            foreach (var file in EnumerateSafely(() => _enumerateFiles(currentDirectory, searchPattern, options), currentDirectory, diagnostics, cancellationToken))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (IsReparsePoint(file))
+                if (!TryGetAttributes(file, false, diagnostics, out var fileAttributes)) continue;
+                if ((fileAttributes & FileAttributes.ReparsePoint) != 0)
                 {
                     continue;
                 }
@@ -174,7 +173,7 @@ public sealed class FileScanner
                     continue;
                 }
 
-                if (!includeHidden && IsHidden(file))
+                if (!includeHidden && IsHidden(file, fileAttributes))
                 {
                     continue;
                 }
@@ -256,23 +255,11 @@ public sealed class FileScanner
         return normalized;
     }
 
-    private static bool IsHidden(string filePath)
+    private static bool IsHidden(string filePath, FileAttributes attributes)
     {
-        if (!File.Exists(filePath) && !Directory.Exists(filePath))
-        {
-            return false;
-        }
-
         var fileName = Path.GetFileName(filePath);
         var startsWithDot = !string.IsNullOrEmpty(fileName) && fileName.StartsWith(".", StringComparison.Ordinal);
-
-        if (OperatingSystem.IsWindows())
-        {
-            var attributes = File.GetAttributes(filePath);
-            return startsWithDot || (attributes & FileAttributes.Hidden) != 0;
-        }
-
-        return startsWithDot;
+        return startsWithDot || (attributes & FileAttributes.Hidden) != 0;
     }
 
     private static bool IsExcludedPath(string path, string rootPath, HashSet<string>? excludedPathSegments)
@@ -307,19 +294,39 @@ public sealed class FileScanner
         return false;
     }
 
-    private static bool IsReparsePoint(string path)
+    private static bool TryGetAttributes(string path, bool directory, ScanDiagnostics diagnostics, out FileAttributes attributes)
     {
-        if (!OperatingSystem.IsWindows())
+        try
         {
+            attributes = File.GetAttributes(path);
+            return true;
+        }
+        catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception))
+        {
+            if (directory) diagnostics.DirectoryFailed(path);
+            else diagnostics.FileFailed(path);
+            attributes = default;
             return false;
         }
+    }
 
-        if (!File.Exists(path) && !Directory.Exists(path))
+    private static IEnumerable<string> EnumerateSafely(Func<IEnumerable<string>> factory, string directory, ScanDiagnostics diagnostics, CancellationToken cancellationToken)
+    {
+        IEnumerator<string>? enumerator = null;
+        try { enumerator = factory().GetEnumerator(); }
+        catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception)) { diagnostics.DirectoryFailed(directory); }
+        if (enumerator is null) yield break;
+        using (enumerator)
         {
-            return false;
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var moved = false;
+                try { moved = enumerator.MoveNext(); }
+                catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception)) { diagnostics.DirectoryFailed(directory); }
+                if (!moved) yield break;
+                yield return enumerator.Current;
+            }
         }
-
-        var attributes = File.GetAttributes(path);
-        return (attributes & FileAttributes.ReparsePoint) != 0;
     }
 }

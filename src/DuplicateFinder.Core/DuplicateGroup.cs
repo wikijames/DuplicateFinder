@@ -292,7 +292,7 @@ public sealed class WindowsCleanupStrategy
 
 public sealed class DuplicateScanSummary
 {
-    public DuplicateScanSummary(string rootPath, IReadOnlyList<DuplicateGroup> groups)
+    public DuplicateScanSummary(string rootPath, IReadOnlyList<DuplicateGroup> groups, ScanIssueSummary? issues = null)
     {
         if (string.IsNullOrWhiteSpace(rootPath))
         {
@@ -305,6 +305,7 @@ public sealed class DuplicateScanSummary
         }
 
         RootPath = rootPath;
+        Issues = issues ?? new ScanIssueSummary(0, 0, 0);
         Groups = groups.OrderBy(group => group.FilePaths.FirstOrDefault() ?? string.Empty, StringComparer.OrdinalIgnoreCase).ToList();
         TotalDuplicateGroups = Groups.Count;
         TotalDuplicateFiles = Groups.Sum(group => group.FilePaths.Count);
@@ -322,6 +323,8 @@ public sealed class DuplicateScanSummary
     public long TotalReclaimableBytes { get; }
 
     public bool HasDuplicates => TotalDuplicateGroups > 0;
+    public ScanIssueSummary Issues { get; }
+    public bool IsComplete => Issues.IsComplete;
 }
 
 public sealed class DuplicateScanReport
@@ -343,6 +346,12 @@ public sealed class DuplicateScanReport
         StatusMessage = summary.HasDuplicates
             ? $"Found {summary.TotalDuplicateGroups} duplicate group(s)."
             : "No duplicate files found in this folder.";
+        if (!summary.IsComplete)
+        {
+            StatusMessage = $"Incomplete scan: {summary.TotalDuplicateGroups} verified duplicate group(s). " +
+                $"Skipped {summary.Issues.SkippedFileCount} file(s) and {summary.Issues.SkippedDirectoryCount} folder(s); " +
+                $"{summary.Issues.ChangedFileCount} file(s) changed during scanning.";
+        }
     }
 
     public string RootPath { get; }
@@ -420,8 +429,8 @@ public sealed class DuplicateScanCoordinator
         }
 
         var detector = new DuplicateDetector();
-        var groups = detector.FindDuplicates(rootPath, options ?? new ScanOptions(), cancellationToken);
-        return new DuplicateScanSummary(rootPath, groups);
+        var result = detector.Scan(rootPath, options ?? new ScanOptions(), cancellationToken);
+        return new DuplicateScanSummary(rootPath, result.Groups, result.Issues);
     }
 
     public DuplicateScanReport CreateReport(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)

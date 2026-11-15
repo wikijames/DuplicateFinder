@@ -22,6 +22,7 @@ public partial class MainWindow : Window
     private bool _cleanupInProgress;
     private string? _lastBatchDirectory;
     private string _customExtensions = string.Empty;
+    private string? _scanCompletionStatus;
 
     public MainWindow()
     {
@@ -275,10 +276,13 @@ public partial class MainWindow : Window
         if (!summary.HasDuplicates)
         {
             ClearCurrentResults(report.StatusMessage);
+            ShowScanIssues(report);
             return;
         }
 
         _workspace.Load(summary.Groups);
+        _scanCompletionStatus = report.StatusMessage;
+        ShowScanIssues(report);
         ResultsList.ItemsSource = summary.Groups.Select(group => new DuplicateGroupItem(group)).ToList();
         EmptyResultsText.IsVisible = false;
         ResultsList.SelectedIndex = 0;
@@ -295,6 +299,9 @@ public partial class MainWindow : Window
 
     private void ClearCurrentResults(string statusMessage)
     {
+        _scanCompletionStatus = null;
+        ScanWarningText.IsVisible = false;
+        ScanWarningText.Text = string.Empty;
         GroupCountText.Text = "0";
         DuplicateFileCountText.Text = "0";
         ReclaimableText.Text = "0 B";
@@ -309,6 +316,12 @@ public partial class MainWindow : Window
         CleanupButton.IsEnabled = false;
         KeepFileComboBox.IsEnabled = false;
         ReviewText.Text = "No review selected.";
+    }
+
+    private void ShowScanIssues(DuplicateScanReport report)
+    {
+        ScanWarningText.Text = report.Summary.IsComplete ? string.Empty : report.StatusMessage;
+        ScanWarningText.IsVisible = !report.Summary.IsComplete;
     }
 
     private void RefreshReview()
@@ -333,7 +346,7 @@ public partial class MainWindow : Window
         ReviewText.Text = _workspace.CleanupOperation is null
             ? "Review only: cleanup requires a scan fingerprint and at most 128 removal targets."
             : $"This group: keep 1 file, remove {selection.RemoveFilePaths.Count}. Other groups are unaffected.";
-        StatusText.Text = "Review the selected group. Nothing is removed until you confirm.";
+        StatusText.Text = _scanCompletionStatus ?? "Review the selected group. Nothing is removed until you confirm.";
     }
 
     private async Task<(bool Confirmed, string? Destination)> ConfirmCleanupAsync(DuplicateCleanupOperation operation)

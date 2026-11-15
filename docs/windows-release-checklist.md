@@ -25,10 +25,10 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Matching and file-system resilience
 
-- [ ] Add scan-time byte verification after hashing; cleanup already requires byte comparison and scan fingerprints.
-- [ ] Handle disappearing, changing and inaccessible files/directories without presenting an incomplete scan as a complete success.
+- [x] Add streaming scan-time byte verification after hashing; preserve fingerprints for guarded cleanup.
+- [x] Isolate detected disappearing, changing and inaccessible files/directories; retain healthy groups and mark incomplete scans. See [verified scans](verified-scans.md).
 - [ ] Define hard-link handling and test reparse points, symlinks, long paths and supported drive types.
-- [ ] Expose per-file failures or skipped counts with clear scan-completeness information.
+- [x] Expose unique skipped-file/folder and changed-file counts with an immutable issue summary and persistent incomplete-scan warning.
 - [ ] Measure memory retention on large candidate sets and bound work queues before adding concurrency.
 
 ## Finish Windows UI and accessibility
