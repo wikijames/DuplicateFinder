@@ -28,7 +28,7 @@ Push-Location $repoRoot
 try {
     $commit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[a-f0-9]{40}$') { throw 'A Git source commit is required.' }
-    $dirty = @(& git status --porcelain -- src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 docs/licenses docs/windows-portable-guide.md).Count -gt 0
+    $dirty = @(& git status --porcelain -- .gitattributes src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 docs/licenses docs/windows-portable-guide.md).Count -gt 0
     $name = 'DuplicateFinder-' + $commit.Substring(0, 7) + '-win-x64'
     $runRoot = Join-Path $repoRoot ('local-only/packages/' + $commit.Substring(0, 7) + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     if (Test-Path -LiteralPath $runRoot) { throw 'The package output already exists. Existing outputs are never removed or overwritten.' }

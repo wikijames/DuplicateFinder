@@ -1,0 +1,2 @@
+# Preserve captured upstream notice bytes and their recorded SHA-256 on Windows checkouts.
+docs/licenses/*.txt -text

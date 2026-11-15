@@ -10,4 +10,6 @@ These are upstream dependency notices, not the application license. They are cop
 
 Collected 15 November 2026. The mutable upstream URLs identify where the captured bytes came from; the hashes identify the committed copies. The MIT template is standard expression text, not a substitute for each component's original copyright. Package copyright declarations remain in the inventory and unmodified `.nuspec` files. Avalonia's notice is pinned to the repository commit declared by the installed 12.1.6 packages.
 
+Git attributes preserve the captured license text bytes without line-ending conversion, including on Windows checkouts.
+
 Inter font provenance/version matching and native transitive attribution still need closure before public distribution. Including these files does not establish complete compliance, change upstream terms or select a license for DuplicateFinder.
