@@ -435,24 +435,24 @@ public sealed class DuplicateScanCoordinator
     public DuplicateScanCoordinator() { }
     public DuplicateScanCoordinator(IFileIdentityProvider? identityProvider) => _identityProvider = identityProvider;
 
-    public DuplicateScanSummary Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
-        => Scan(new[] { rootPath }, options, cancellationToken);
+    public DuplicateScanSummary Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
+        => Scan(new[] { rootPath }, options, cancellationToken, progress);
 
-    public DuplicateScanSummary Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
+    public DuplicateScanSummary Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var roots = ScanRoots.Normalize(rootPaths);
         var detector = new DuplicateDetector(_identityProvider);
-        var result = detector.Scan(roots, options ?? new ScanOptions(), cancellationToken);
+        var result = detector.Scan(roots, options ?? new ScanOptions(), cancellationToken, progress);
         return new DuplicateScanSummary(roots, result.Groups, result.Issues);
     }
 
-    public DuplicateScanReport CreateReport(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
-        => CreateReport(new[] { rootPath }, options, cancellationToken);
+    public DuplicateScanReport CreateReport(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
+        => CreateReport(new[] { rootPath }, options, cancellationToken, progress);
 
-    public DuplicateScanReport CreateReport(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
+    public DuplicateScanReport CreateReport(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
     {
-        var summary = Scan(rootPaths, options, cancellationToken);
+        var summary = Scan(rootPaths, options, cancellationToken, progress);
         return new DuplicateScanReport(summary.RootPath, summary);
     }
 }

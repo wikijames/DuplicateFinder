@@ -1,7 +1,44 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="DuplicateFinder.Desktop.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Default">
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="WorkspaceBackground">#111A23</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceForeground">#EEF3F7</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceMuted">#AAB9C7</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspacePanel">#1A2632</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInset">#17232E</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBorder">#304150</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBadge">#193D3A</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccentText">#8EE2D4</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccent">#77D4C3</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnAccent">#102722</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceDanger">#58363B</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnDanger">#FFE2E2</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceWarning">#F1C777</SolidColorBrush>
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="WorkspaceBackground">#F1F5F8</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceForeground">#162534</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceMuted">#485B6B</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspacePanel">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceInset">#E7EEF3</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBorder">#8295A5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceBadge">#D3ECE5</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccentText">#075C50</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceAccent">#116B5D</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnAccent">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceDanger">#812D3A</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceOnDanger">#FFFFFF</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceWarning">#714900</SolidColorBrush>
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+        </ResourceDictionary>
+    </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
