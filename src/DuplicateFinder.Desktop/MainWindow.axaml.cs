@@ -33,7 +33,23 @@ public partial class MainWindow : Window
         ConfigureFolderDrop();
         ResultsSortBox.ItemsSource = new[] { "Name (A–Z)", "Extra-copy size (largest)", "File size (largest)", "Copy count (most)" };
         ResultsSortBox.SelectedIndex = 0;
+        AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
+        AppearanceBox.SelectedIndex = 0;
         GroupFilesList.SelectionChanged += (_, _) => PreviewFileButton.IsEnabled = !SetupIsBusy && GroupFilesList.SelectedItem is DuplicateFileItem;
+        KeyDown += (_, e) =>
+        {
+            if (e.Key == Avalonia.Input.Key.Escape && _scanCancellation is not null)
+            {
+                _scanCancellation.Cancel();
+                e.Handled = true;
+            }
+            else if (e.Key == Avalonia.Input.Key.F && e.KeyModifiers == Avalonia.Input.KeyModifiers.Control && !SetupIsBusy)
+            {
+                ResultsSearchBox.Focus();
+                ResultsSearchBox.SelectAll();
+                e.Handled = true;
+            }
+        };
     }
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
@@ -225,6 +241,7 @@ public partial class MainWindow : Window
         AddFolderButton.IsEnabled = !busy;
         ManageFoldersButton.IsEnabled = !busy;
         ScanSettingsButton.IsEnabled = !busy;
+        AppearanceBox.IsEnabled = !busy;
         ExtensionsBox.IsEnabled = !busy;
         FileTypeBox.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
@@ -267,7 +284,21 @@ public partial class MainWindow : Window
 
         var coordinator = new DuplicateScanCoordinator(OperatingSystem.IsWindows() ? new WindowsFileIdentityProvider() : null);
         ClearCurrentResults("Scanning...");
-        var report = await Task.Run(() => coordinator.CreateReport(roots, options, cancellationToken), cancellationToken);
+        var progress = new LatestScanProgress();
+        var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
+        timer.Tick += (_, _) =>
+        {
+            if (progress.TakeLatest() is not { } snapshot) return;
+            StatusText.Text = $"{snapshot.Stage}: {snapshot.DiscoveredFiles} candidates · {snapshot.SampledFiles} sampled · " +
+                $"{snapshot.HashedFiles} hashed · {snapshot.VerifiedPairs} pairs checked · {DisplayFileSize.Format(snapshot.BytesRead)} read";
+        };
+        DuplicateScanReport report;
+        timer.Start();
+        try
+        {
+            report = await Task.Run(() => coordinator.CreateReport(roots, options, cancellationToken, progress), cancellationToken);
+        }
+        finally { timer.Stop(); }
         cancellationToken.ThrowIfCancellationRequested();
         var summary = report.Summary;
 

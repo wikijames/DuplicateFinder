@@ -40,9 +40,10 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 - [x] Expose supported size, hidden-file and exclusion options with clear defaults.
 - [x] Add group sorting/search while preserving whole groups and protected keep choices. Cleanup remains scoped to the reviewed group; optional individual removal selection is deferred.
 - [x] Add bounded, read-only UTF-8 text previews; unsupported formats retain metadata-only details. See [results controls and preview limits](results-search-and-previews.md). Image/PDF rendering remains a separate extension.
-- [ ] Show measured scan progress/stages and counts without inventing a completion percentage.
-- [ ] Test keyboard navigation, screen-reader labels, high contrast, display scaling, window resizing and long paths.
-- [ ] Decide and validate system/light/dark appearance before release. The current branch implements the selected dark direction.
+- [x] Show measured scan stages and cumulative work counts without a completion percentage. See [progress and keyboard validation](scan-progress-and-accessibility.md).
+- [ ] Complete keyboard navigation, screen-reader, high contrast and display scaling validation. Ctrl+F, Escape cancellation, automation labels and populated minimum-window layout have local checks; the wider matrix remains open.
+- [x] Provide session-only System/Light/Dark appearance with theme-aware colors and verified selection controls.
+- [ ] Validate rendered contrast and appearance across the Windows/display/accessibility matrix before release.
 
 ## Performance and diagnostics
 

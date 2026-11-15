@@ -26,10 +26,10 @@ public sealed class DuplicateDetector
     public IReadOnlyList<DuplicateGroup> FindDuplicates(IEnumerable<string> roots, ScanOptions? options = null, CancellationToken cancellationToken = default)
         => Scan(roots, options, cancellationToken).Groups;
 
-    public DuplicateDetectionResult Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default)
-        => Scan(new[] { rootPath }, options, cancellationToken);
+    public DuplicateDetectionResult Scan(string rootPath, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
+        => Scan(new[] { rootPath }, options, cancellationToken, progress);
 
-    public DuplicateDetectionResult Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default)
+    public DuplicateDetectionResult Scan(IEnumerable<string> rootPaths, ScanOptions? options = null, CancellationToken cancellationToken = default, IProgress<ScanProgress>? progress = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var roots = ScanRoots.Normalize(rootPaths);
@@ -39,6 +39,8 @@ public sealed class DuplicateDetector
         }
 
         var diagnostics = new ScanDiagnostics();
+        var tracker = new ScanProgressTracker(progress);
+        tracker.Stage(ScanStage.Discovering);
         var seenPaths = new HashSet<string>(OperatingSystem.IsWindows() ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
         var seenIdentities = new HashSet<FileIdentity>();
         var sizeGroups = new Dictionary<long, List<Candidate>>();
@@ -46,6 +48,7 @@ public sealed class DuplicateDetector
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (!seenPaths.Add(path)) continue;
+            tracker.Discovered();
             try
             {
                 var info = new FileInfo(path);
@@ -77,30 +80,34 @@ public sealed class DuplicateDetector
         {
             cancellationToken.ThrowIfCancellationRequested();
             var sampleHashGroups = new Dictionary<string, List<Candidate>>(StringComparer.Ordinal);
+            tracker.Stage(ScanStage.Sampling);
             foreach (var candidate in sizeGroup)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var sampleHash = TryHash(candidate, diagnostics, cancellationToken, 64 * 1024);
+                var sampleHash = TryHash(candidate, diagnostics, cancellationToken, tracker, 64 * 1024);
                 if (sampleHash is not null) Add(sampleHashGroups, sampleHash, candidate);
             }
             var hashGroups = new Dictionary<string, List<Candidate>>(StringComparer.Ordinal);
+            tracker.Stage(ScanStage.Hashing);
             foreach (var sampleGroup in sampleHashGroups.Values.Where(group => group.Count > 1))
             {
                 foreach (var candidate in sampleGroup)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    var hash = TryHash(candidate, diagnostics, cancellationToken);
+                    var hash = TryHash(candidate, diagnostics, cancellationToken, tracker);
                     if (hash is not null) Add(hashGroups, _groupHash(hash), candidate with { ContentHash = hash });
                 }
             }
             _beforeVerification?.Invoke();
+            tracker.Stage(ScanStage.Verifying);
             foreach (var bucket in hashGroups.Values.Where(group => group.Count > 1))
             {
-                VerifyBucket(bucket, duplicateGroups, diagnostics, cancellationToken);
+                VerifyBucket(bucket, duplicateGroups, diagnostics, cancellationToken, tracker);
             }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
+        tracker.Stage(ScanStage.Completed);
         return new DuplicateDetectionResult(duplicateGroups.OrderBy(group => group.FilePaths[0], StringComparer.OrdinalIgnoreCase).ToArray(), diagnostics.Snapshot());
     }
 
@@ -129,16 +136,17 @@ public sealed class DuplicateDetector
         group.Add(candidate);
     }
 
-    private string? TryHash(Candidate candidate, ScanDiagnostics diagnostics, CancellationToken token, long? maxBytes = null)
+    private string? TryHash(Candidate candidate, ScanDiagnostics diagnostics, CancellationToken token, ScanProgressTracker tracker, long? maxBytes = null)
     {
         try
         {
             EnsureUnchanged(candidate);
             using var stream = File.Open(candidate.Path, FileMode.Open, FileAccess.Read, FileShare.Read);
             ValidateIdentity(candidate, stream);
-            var hash = ComputeHash(stream, token, maxBytes);
+            var hash = ComputeHash(stream, token, maxBytes, tracker.Read);
             ValidateIdentity(candidate, stream);
             EnsureUnchanged(candidate);
+            if (maxBytes.HasValue) tracker.Sampled(); else tracker.Hashed();
             return hash;
         }
         catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception))
@@ -157,7 +165,7 @@ public sealed class DuplicateDetector
             throw new ScanFileChangedException();
     }
 
-    private void VerifyBucket(List<Candidate> bucket, List<DuplicateGroup> groups, ScanDiagnostics diagnostics, CancellationToken token)
+    private void VerifyBucket(List<Candidate> bucket, List<DuplicateGroup> groups, ScanDiagnostics diagnostics, CancellationToken token, ScanProgressTracker tracker)
     {
         var remaining = bucket.OrderBy(candidate => candidate.Path, StringComparer.OrdinalIgnoreCase).ToList();
         while (remaining.Count > 1)
@@ -173,7 +181,7 @@ public sealed class DuplicateDetector
                 var candidate = remaining[index];
                 try
                 {
-                    if (Compare(reference, candidate, token))
+                    if (Compare(reference, candidate, token, tracker))
                     {
                         matches.Add(candidate);
                         remaining.RemoveAt(index);
@@ -197,7 +205,7 @@ public sealed class DuplicateDetector
         }
     }
 
-    private bool Compare(Candidate reference, Candidate candidate, CancellationToken token)
+    private bool Compare(Candidate reference, Candidate candidate, CancellationToken token, ScanProgressTracker tracker)
     {
         using var referenceStream = OpenForVerification(reference);
         using var candidateStream = OpenForVerification(candidate);
@@ -210,7 +218,9 @@ public sealed class DuplicateDetector
         {
             token.ThrowIfCancellationRequested();
             var referenceCount = Read(referenceStream, referenceBuffer, reference);
+            tracker.Read(referenceCount);
             var candidateCount = Read(candidateStream, candidateBuffer, candidate);
+            tracker.Read(candidateCount);
             if (referenceCount != candidateCount || !referenceBuffer.AsSpan(0, referenceCount).SequenceEqual(candidateBuffer.AsSpan(0, candidateCount))) equal = false;
             referenceHash.AppendData(referenceBuffer, 0, referenceCount);
             candidateHash.AppendData(candidateBuffer, 0, candidateCount);
@@ -219,6 +229,7 @@ public sealed class DuplicateDetector
         ValidateHash(reference, referenceStream, referenceHash);
         ValidateHash(candidate, candidateStream, candidateHash);
         token.ThrowIfCancellationRequested();
+        tracker.Verified();
         return equal;
     }
 
@@ -269,7 +280,7 @@ public sealed class DuplicateDetector
         public Candidate File { get; } = file;
     }
 
-    internal static string ComputeHash(Stream stream, CancellationToken cancellationToken, long? maxBytes = null)
+    internal static string ComputeHash(Stream stream, CancellationToken cancellationToken, long? maxBytes = null, Action<int>? reportBytes = null)
     {
         using var sha256 = SHA256.Create();
         var buffer = new byte[1024 * 1024];
@@ -294,6 +305,7 @@ public sealed class DuplicateDetector
             }
 
             bytesProcessed += bytesRead;
+            reportBytes?.Invoke(bytesRead);
             sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
 
             if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)

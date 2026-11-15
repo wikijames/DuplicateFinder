@@ -12,6 +12,17 @@ namespace DuplicateFinder.Desktop;
 
 public partial class MainWindow
 {
+    private void AppearanceBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox box || Application.Current is not { } application) return;
+        application.RequestedThemeVariant = box.SelectedIndex switch
+        {
+            1 => Avalonia.Styling.ThemeVariant.Light,
+            2 => Avalonia.Styling.ThemeVariant.Dark,
+            _ => Avalonia.Styling.ThemeVariant.Default
+        };
+    }
+
     private CancellationTokenSource? _previewCancellation;
 
     private void ResultsSearch_Changed(object? sender, TextChangedEventArgs e) => RefreshResultGroups();
