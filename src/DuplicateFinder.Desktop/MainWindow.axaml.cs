@@ -16,15 +16,13 @@ namespace DuplicateFinder.Desktop;
 
 public partial class MainWindow : Window
 {
-    private DuplicateCleanupOperation? _pendingOperation;
-    private DuplicateGroup? _currentDuplicateGroup;
+    private readonly DuplicateReviewWorkspace _workspace = new();
     private CancellationTokenSource? _scanCancellation;
     private bool _cleanupInProgress;
 
     public MainWindow()
     {
         InitializeComponent();
-        RootPathBox.Text = Path.Combine(Path.GetTempPath(), "DuplicateFinder.Desktop", "demo");
         KeepFileComboBox.SelectionChanged += KeepFileComboBox_SelectionChanged;
     }
 
@@ -62,12 +60,20 @@ public partial class MainWindow : Window
         }
 
         RootPathBox.Text = selectedPath;
-        await TryScanCurrentRootAsync();
+        ClearCurrentResults("Folder selected. Choose extensions or scan all file types.");
     }
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)
     {
         await TryScanCurrentRootAsync();
+    }
+
+    private void ScanSetup_Changed(object? sender, TextChangedEventArgs e)
+    {
+        if (_workspace.Groups.Count > 0 && !_cleanupInProgress && _scanCancellation is null)
+        {
+            ClearCurrentResults("Scan setup changed. Scan again before reviewing removal.");
+        }
     }
 
     private void CancelScanButton_Click(object sender, RoutedEventArgs e)
@@ -83,13 +89,13 @@ public partial class MainWindow : Window
 
     private async void CleanupButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_pendingOperation is null || _cleanupInProgress || _scanCancellation is not null)
+        var operation = _workspace.CleanupOperation;
+        if (operation is null || _cleanupInProgress || _scanCancellation is not null)
         {
-            ResultsList.ItemsSource = new[] { "No duplicate group is currently selected for cleanup." };
+            StatusText.Text = "Select a duplicate group and keep file before reviewing removal.";
             return;
         }
 
-        var operation = _pendingOperation;
         _cleanupInProgress = true;
         SetScanInProgress(false);
         try
@@ -118,17 +124,32 @@ public partial class MainWindow : Window
 
     private void KeepFileComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (_currentDuplicateGroup is null)
+        if (_workspace.Selection is null)
         {
             return;
         }
 
-        if (KeepFileComboBox.SelectedItem is not string keepPath)
+        if (KeepFileComboBox.SelectedItem is not KeepFileChoice choice)
         {
             return;
         }
 
-        UpdateReviewSelection(keepPath);
+        _workspace.SelectKeepFile(choice.FullPath);
+        RefreshReview();
+    }
+
+    private void ResultsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        var item = ResultsList.SelectedItem as DuplicateGroupItem;
+        _workspace.SelectGroup(item?.Group);
+        KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
+        if (_workspace.Selection is { } selection)
+        {
+            var choices = selection.Group.FilePaths.Select(path => new KeepFileChoice(path)).ToList();
+            KeepFileComboBox.ItemsSource = choices;
+            KeepFileComboBox.SelectedItem = choices.First(choice => choice.FullPath == selection.KeepFilePath);
+        }
+        RefreshReview();
     }
 
     private async Task TryScanCurrentRootAsync()
@@ -165,11 +186,14 @@ public partial class MainWindow : Window
     {
         var busy = scanning || _cleanupInProgress;
         RootPathBox.IsEnabled = !busy;
+        ExtensionsBox.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
         ScanButton.IsEnabled = !busy;
-        CleanupButton.IsEnabled = !busy && _pendingOperation is not null;
-        KeepFileComboBox.IsEnabled = !busy;
+        ResultsList.IsEnabled = !busy;
+        CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
+        KeepFileComboBox.IsEnabled = !busy && _workspace.Selection is not null;
         CancelScanButton.IsEnabled = scanning;
+        ScanProgressIndicator.IsVisible = busy;
     }
 
     private async Task ScanCurrentRootAsync(CancellationToken cancellationToken)
@@ -187,49 +211,38 @@ public partial class MainWindow : Window
             return;
         }
 
+        ScanOptions options;
+        try
+        {
+            options = ScanSetup.CreateOptions(ExtensionsBox.Text);
+        }
+        catch (ArgumentException)
+        {
+            ClearCurrentResults("Use comma-separated extensions such as .txt, .jpg or .pdf. Leave blank to scan all file types.");
+            return;
+        }
+
         var coordinator = new DuplicateScanCoordinator();
         ClearCurrentResults("Scanning...");
-        var report = await Task.Run(() => coordinator.CreateReport(rootPath, new ScanOptions
-        {
-            AllowedExtensions = new[] { ".txt" }
-        }, cancellationToken), cancellationToken);
+        var report = await Task.Run(() => coordinator.CreateReport(rootPath, options, cancellationToken), cancellationToken);
         cancellationToken.ThrowIfCancellationRequested();
         var summary = report.Summary;
 
         GroupCountText.Text = summary.TotalDuplicateGroups.ToString();
         DuplicateFileCountText.Text = summary.TotalDuplicateFiles.ToString();
-        ReclaimableText.Text = $"{summary.TotalReclaimableBytes} bytes";
+        ReclaimableText.Text = DisplayFileSize.Format(summary.TotalReclaimableBytes);
         StatusText.Text = report.StatusMessage;
 
         if (!summary.HasDuplicates)
         {
-            ResultsList.ItemsSource = new[] { report.StatusMessage };
-            KeepFileComboBox.ItemsSource = Array.Empty<string>();
-            _currentDuplicateGroup = null;
-            _pendingOperation = null;
-            ReviewText.Text = "No review selected.";
+            ClearCurrentResults(report.StatusMessage);
             return;
         }
 
-        var duplicateGroup = summary.Groups.FirstOrDefault();
-        if (duplicateGroup is null)
-        {
-            KeepFileComboBox.ItemsSource = Array.Empty<string>();
-            _currentDuplicateGroup = null;
-            _pendingOperation = null;
-            ReviewText.Text = "No review selected.";
-            return;
-        }
-
-        _currentDuplicateGroup = duplicateGroup;
-        KeepFileComboBox.ItemsSource = duplicateGroup.FilePaths;
-        KeepFileComboBox.SelectedIndex = 0;
-
-        ResultsList.ItemsSource = summary.Groups
-            .Select(group => $"{group.SizeBytes} bytes: {string.Join(", ", group.FilePaths)}")
-            .ToList();
-
-        UpdateReviewSelection(duplicateGroup.FilePaths.First());
+        _workspace.Load(summary.Groups);
+        ResultsList.ItemsSource = summary.Groups.Select(group => new DuplicateGroupItem(group)).ToList();
+        EmptyResultsText.IsVisible = false;
+        ResultsList.SelectedIndex = 0;
     }
 
     private void ReportOperationFailure(string operation, Exception exception)
@@ -245,45 +258,43 @@ public partial class MainWindow : Window
     {
         GroupCountText.Text = "0";
         DuplicateFileCountText.Text = "0";
-        ReclaimableText.Text = "0 bytes";
+        ReclaimableText.Text = "0 B";
         StatusText.Text = statusMessage;
-        ResultsList.ItemsSource = new[] { statusMessage };
-        KeepFileComboBox.ItemsSource = Array.Empty<string>();
-        _currentDuplicateGroup = null;
-        _pendingOperation = null;
+        _workspace.Clear();
+        ResultsList.ItemsSource = Array.Empty<DuplicateGroupItem>();
+        KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
+        GroupFilesList.ItemsSource = Array.Empty<DuplicateFileItem>();
+        SelectedGroupTitle.Text = "Choose a duplicate group";
+        EmptyResultsText.Text = statusMessage;
+        EmptyResultsText.IsVisible = true;
         CleanupButton.IsEnabled = false;
+        KeepFileComboBox.IsEnabled = false;
         ReviewText.Text = "No review selected.";
     }
 
-    private void UpdateReviewSelection(string keepPath)
+    private void RefreshReview()
     {
-        if (_currentDuplicateGroup is null)
+        var selection = _workspace.Selection;
+        if (selection is null)
         {
+            GroupFilesList.ItemsSource = Array.Empty<DuplicateFileItem>();
+            SelectedGroupTitle.Text = "Choose a duplicate group";
+            ReviewText.Text = "No review selected.";
+            CleanupButton.IsEnabled = false;
+            KeepFileComboBox.IsEnabled = false;
             return;
         }
 
-        var selection = new DuplicateReviewSelection(_currentDuplicateGroup, keepPath);
-        var removeTarget = selection.RemoveFilePaths.FirstOrDefault();
-        if (string.IsNullOrWhiteSpace(removeTarget))
-        {
-            _pendingOperation = null;
-            ReviewText.Text = "No safe removal target is available for review.";
-            return;
-        }
-
-        var plan = new DuplicateCleanupPlan(selection, DuplicateAction.Delete);
-        if (!plan.CanExecute)
-        {
-            _pendingOperation = null;
-            ReviewText.Text = "The selected review cannot produce a safe cleanup target.";
-            return;
-        }
-
-        var execution = new DuplicateCleanupExecutor().CreateExecution(plan);
-        _pendingOperation = new DuplicateCleanupAdapter().CreateOperation(execution);
-        CleanupButton.IsEnabled = _scanCancellation is null && !_cleanupInProgress;
-        ReviewText.Text = $"Keep: {selection.KeepFilePath}; Remove: {string.Join(", ", selection.RemoveFilePaths)}";
-        StatusText.Text = $"Reviewing duplicate group: keep '{selection.KeepFilePath}' and remove {plan.PathsToRemove.Count} duplicate file(s).";
+        var busy = _scanCancellation is not null || _cleanupInProgress;
+        SelectedGroupTitle.Text = Path.GetFileName(selection.Group.FilePaths[0]);
+        GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new DuplicateFileItem(path, selection.Group.SizeBytes,
+            string.Equals(path, selection.KeepFilePath, StringComparison.OrdinalIgnoreCase))).ToList();
+        CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
+        KeepFileComboBox.IsEnabled = !busy;
+        ReviewText.Text = _workspace.CleanupOperation is null
+            ? "Review only: cleanup requires a scan fingerprint and at most 128 removal targets."
+            : $"This group: keep 1 file, remove {selection.RemoveFilePaths.Count}. Other groups are unaffected.";
+        StatusText.Text = "Review the selected group. Nothing is removed until you confirm.";
     }
 
     private async Task<bool> ConfirmCleanupAsync(DuplicateCleanupOperation operation)
