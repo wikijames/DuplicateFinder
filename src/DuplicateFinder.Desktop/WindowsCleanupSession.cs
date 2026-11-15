@@ -33,6 +33,26 @@ public sealed class WindowsCleanupSession : IDisposable
 
     private WindowsCleanupSession() { }
 
+    internal static async System.Threading.Tasks.Task<byte[]> ReadPreviewBytesAsync(string path, System.Threading.CancellationToken cancellationToken)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException();
+        cancellationToken.ThrowIfCancellationRequested();
+        using var session = new WindowsCleanupSession();
+        path = GetSupportedPath(path);
+        session.LockParents(path, new HashSet<string>(StringComparer.OrdinalIgnoreCase));
+        session._keep = OpenFile(path, deleteAccess: false);
+        if (session._keep.Length > TextFilePreview.MaximumBytes) return new byte[TextFilePreview.MaximumBytes + 1];
+        var buffer = new byte[TextFilePreview.MaximumBytes + 1];
+        var count = 0;
+        while (count < buffer.Length)
+        {
+            var read = await session._keep.ReadAsync(buffer.AsMemory(count), cancellationToken);
+            if (read == 0) break;
+            count += read;
+        }
+        return buffer.AsSpan(0, count).ToArray();
+    }
+
     public static WindowsCleanupSession Prepare(DuplicateCleanupOperation operation)
     {
         ArgumentNullException.ThrowIfNull(operation);

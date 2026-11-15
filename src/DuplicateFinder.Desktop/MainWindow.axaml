@@ -71,9 +71,14 @@
 
         <Grid Grid.Row="3" ColumnDefinitions="300,12,*">
             <Border Background="#17232E" BorderBrush="#304150" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
-                <Grid RowDefinitions="Auto,*">
+                <Grid RowDefinitions="Auto,Auto,*">
                     <TextBlock Margin="16,14" Classes="muted" Text="DUPLICATE GROUPS" FontSize="11" FontWeight="SemiBold" />
-                    <ListBox Grid.Row="1" Name="ResultsList" Background="Transparent" SelectionChanged="ResultsList_SelectionChanged"
+                    <StackPanel Grid.Row="1" Margin="12,0,12,8" Spacing="6">
+                        <TextBox Name="ResultsSearchBox" PlaceholderText="Search names or paths" AutomationProperties.Name="Search duplicate groups" TextChanged="ResultsSearch_Changed" />
+                        <ComboBox Name="ResultsSortBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Sort duplicate groups" SelectionChanged="ResultsSort_Changed" />
+                        <TextBlock Name="VisibleGroupsText" Classes="muted" FontSize="11" Text="0 of 0 groups" />
+                    </StackPanel>
+                    <ListBox Grid.Row="2" Name="ResultsList" Background="Transparent" SelectionChanged="ResultsList_SelectionChanged"
                              AutomationProperties.Name="Duplicate groups">
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="local:DuplicateGroupItem">
@@ -85,7 +90,7 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Grid.Row="1" Name="EmptyResultsText" Margin="22" Classes="muted" Text="Choose a folder and start a scan."
+                    <TextBlock Grid.Row="2" Name="EmptyResultsText" Margin="22" Classes="muted" Text="Choose a folder and start a scan."
                                TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
                 </Grid>
             </Border>
@@ -121,7 +126,10 @@
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Grid.Row="4" Name="ReviewText" Text="No review selected." Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                    <StackPanel Grid.Row="4" Spacing="6">
+                        <Button Name="PreviewFileButton" Content="Preview selected file" Click="PreviewFileButton_Click" IsEnabled="False" />
+                        <TextBlock Name="ReviewText" Text="No review selected." Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                    </StackPanel>
                 </Grid>
             </Border>
         </Grid>
