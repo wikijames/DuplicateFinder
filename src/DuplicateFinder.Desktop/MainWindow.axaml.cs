@@ -31,6 +31,7 @@ public partial class MainWindow : Window
         FileTypeBox.ItemsSource = FileTypePreset.CommonTypes;
         FileTypeBox.SelectedIndex = 0;
         ConfigureFolderDrop();
+        _diagnosticsTimer.Tick += (_, _) => UpdateDiagnosticsButton();
         ResultsSortBox.ItemsSource = new[] { "Name (A–Z)", "Extra-copy size (largest)", "File size (largest)", "Copy count (most)" };
         ResultsSortBox.SelectedIndex = 0;
         AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
@@ -147,15 +148,18 @@ public partial class MainWindow : Window
             }
 
             StatusText.Text = "Checking files and cleaning up...";
+            _diagnostics?.Record(operation.Action == DuplicateAction.Quarantine ? DiagnosticOperation.Quarantine : DiagnosticOperation.PermanentDelete, DiagnosticOutcome.Started);
             if (operation.Action == DuplicateAction.Quarantine)
             {
                 var batch = await Task.Run(() => new QuarantineService().Quarantine(operation, destination!));
                 RememberBatch(batch.DirectoryPath);
+                _diagnostics?.Record(DiagnosticOperation.Quarantine, DiagnosticOutcome.Completed, files: batch.Entries.Count);
                 ClearCurrentResults($"Quarantined {batch.Entries.Count} file(s). Use Restore batch to recover them. Disk usage is unchanged.");
             }
             else
             {
                 await Task.Run(() => new WindowsCleanupService().Execute(operation));
+                _diagnostics?.Record(DiagnosticOperation.PermanentDelete, DiagnosticOutcome.Completed, files: operation.PathsToRemove.Count);
                 ClearCurrentResults("Cleanup completed. Rescan to refresh results.");
             }
         }
@@ -222,6 +226,7 @@ public partial class MainWindow : Window
         {
             ClearCurrentResults("Scan cancelled.");
             Trace.TraceInformation("Scan cancelled.");
+            _diagnostics?.Record(DiagnosticOperation.Scan, DiagnosticOutcome.Cancelled);
         }
         catch (Exception exception)
         {
@@ -242,6 +247,7 @@ public partial class MainWindow : Window
         ManageFoldersButton.IsEnabled = !busy;
         ScanSettingsButton.IsEnabled = !busy;
         AppearanceBox.IsEnabled = !busy;
+        DiagnosticsButton.IsEnabled = !busy;
         ExtensionsBox.IsEnabled = !busy;
         FileTypeBox.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
@@ -284,6 +290,7 @@ public partial class MainWindow : Window
 
         var coordinator = new DuplicateScanCoordinator(OperatingSystem.IsWindows() ? new WindowsFileIdentityProvider() : null);
         ClearCurrentResults("Scanning...");
+        _diagnostics?.Record(DiagnosticOperation.Scan, DiagnosticOutcome.Started);
         var progress = new LatestScanProgress();
         var timer = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(200) };
         timer.Tick += (_, _) =>
@@ -301,6 +308,8 @@ public partial class MainWindow : Window
         finally { timer.Stop(); }
         cancellationToken.ThrowIfCancellationRequested();
         var summary = report.Summary;
+        _diagnostics?.Record(DiagnosticOperation.Scan, DiagnosticOutcome.Completed, groups: summary.TotalDuplicateGroups,
+            files: summary.TotalDuplicateFiles, skippedFiles: summary.Issues.SkippedFileCount, skippedFolders: summary.Issues.SkippedDirectoryCount);
 
         GroupCountText.Text = summary.TotalDuplicateGroups.ToString();
         DuplicateFileCountText.Text = summary.TotalDuplicateFiles.ToString();
@@ -327,6 +336,13 @@ public partial class MainWindow : Window
     {
         var diagnostic = $"{operation} failed ({exception.GetType().Name}).";
         Trace.TraceError(diagnostic);
+        _diagnostics?.Record(operation switch
+        {
+            "Scan" => DiagnosticOperation.Scan,
+            "Cleanup" => _workspace.CleanupAction == DuplicateAction.Quarantine ? DiagnosticOperation.Quarantine : DiagnosticOperation.PermanentDelete,
+            "Folder selection" => DiagnosticOperation.FolderSelection,
+            _ => DiagnosticOperation.Session
+        }, DiagnosticOutcome.Failed, SessionDiagnostics.Classify(exception));
         ClearCurrentResults(operation == "Cleanup"
             ? $"{diagnostic} Cleanup may be incomplete. Rescan and review files before retrying."
             : diagnostic);
@@ -464,9 +480,10 @@ public partial class MainWindow : Window
         RecoveryText.IsVisible = true;
     }
 
-    private void ReportRecoveryInterruption(QuarantineInterruptedException exception)
+    private void ReportRecoveryInterruption(QuarantineInterruptedException exception, DiagnosticOperation operation = DiagnosticOperation.Quarantine)
     {
         Trace.TraceError("Recovery operation interrupted ({0}).", exception.GetType().Name);
+        _diagnostics?.Record(operation, DiagnosticOutcome.Interrupted, DiagnosticFailure.InputOutput, files: exception.CompletedCount);
         RememberBatch(exception.BatchDirectory);
         ClearCurrentResults($"Recovery operation stopped after {exception.CompletedCount} move(s). Keep the batch; use Restore batch after resolving conflicts.");
     }
@@ -494,17 +511,20 @@ public partial class MainWindow : Window
             }
             RememberBatch(batch.DirectoryPath);
             StatusText.Text = "Checking recovery files and restoring...";
+            _diagnostics?.Record(DiagnosticOperation.Restore, DiagnosticOutcome.Started);
             var result = await Task.Run(() => service.Restore(batch));
+            _diagnostics?.Record(DiagnosticOperation.Restore, DiagnosticOutcome.Completed, files: result.RestoredCount);
             RememberBatch(batch.DirectoryPath);
             ClearCurrentResults($"Restored {result.RestoredCount} file(s); {result.AlreadyOriginalCount} already at their original locations. Rescan to refresh results.");
         }
         catch (QuarantineInterruptedException exception)
         {
-            ReportRecoveryInterruption(exception);
+            ReportRecoveryInterruption(exception, DiagnosticOperation.Restore);
         }
         catch (Exception exception)
         {
             Trace.TraceError("Restore failed ({0}).", exception.GetType().Name);
+            _diagnostics?.Record(DiagnosticOperation.Restore, DiagnosticOutcome.Failed, SessionDiagnostics.Classify(exception));
             ClearCurrentResults("Restore stopped. Check the batch, original folders and file conflicts. No existing file is overwritten.");
         }
         finally
