@@ -9,6 +9,7 @@ public class CleanupReviewTests
     [InlineData("second.txt", DuplicateAction.Delete)]
     [InlineData("third.txt", DuplicateAction.Delete)]
     [InlineData("third.txt", DuplicateAction.MoveToRecycleBin)]
+    [InlineData("third.txt", DuplicateAction.Quarantine)]
     public void ReviewPlan_PreservesChosenKeepFileAndAllDisplayedRemovalTargets(string keepPath, DuplicateAction action)
     {
         var group = new DuplicateGroup(new[] { "first.txt", "second.txt", "third.txt" }, 32, "scan-fingerprint");

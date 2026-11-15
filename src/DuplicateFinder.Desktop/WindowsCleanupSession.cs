@@ -4,12 +4,13 @@ using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using DuplicateFinder.Core;
 using Microsoft.Win32.SafeHandles;
 
 namespace DuplicateFinder.Desktop;
 
-/// <summary>Owns locked files from preflight through handle-based deletion.</summary>
+/// <summary>Owns locked files from preflight through handle-based deletion or recovery moves.</summary>
 public sealed class WindowsCleanupSession : IDisposable
 {
     private const uint GenericRead = 0x80000000;
@@ -19,10 +20,16 @@ public sealed class WindowsCleanupSession : IDisposable
     private const uint OpenReparsePoint = 0x00200000;
     private const uint BackupSemantics = 0x02000000;
     private const int FileDispositionInformation = 4;
+    private const int FileRenameInformation = 3;
     private readonly List<SafeFileHandle> _directories = new();
     private readonly List<FileStream> _targets = new();
+    private readonly List<FileStream> _references = new();
+    private readonly List<string> _destinations = new();
     private FileStream? _keep;
     private bool _disposed;
+    private bool _permanentDeletion;
+    public int MovedCount { get; private set; }
+    public int AlreadyOriginalCount { get; private set; }
 
     private WindowsCleanupSession() { }
 
@@ -34,13 +41,13 @@ public sealed class WindowsCleanupSession : IDisposable
             throw new PlatformNotSupportedException("Cleanup requires Windows.");
         }
 
-        if (!operation.CanExecute || operation.Action != DuplicateAction.Delete ||
+        if (!operation.CanExecute || operation.Action is not DuplicateAction.Delete and not DuplicateAction.Quarantine ||
             operation.PathsToRemove.Count is < 1 or > 128)
         {
-            throw new InvalidOperationException("Cleanup requires a permanent-delete review of at most 128 targets. No files were removed.");
+            throw new InvalidOperationException("Cleanup requires a delete or quarantine review of at most 128 targets. No files were removed.");
         }
 
-        var session = new WindowsCleanupSession();
+        var session = new WindowsCleanupSession { _permanentDeletion = operation.Action == DuplicateAction.Delete };
         try
         {
             var paths = operation.PathsToRemove.Prepend(operation.KeepPath).Select(GetSupportedPath).ToArray();
@@ -74,7 +81,7 @@ public sealed class WindowsCleanupSession : IDisposable
         }
     }
 
-    private static string GetSupportedPath(string path)
+    internal static string GetSupportedPath(string path)
     {
         if (!Path.IsPathFullyQualified(path))
         {
@@ -95,6 +102,80 @@ public sealed class WindowsCleanupSession : IDisposable
         }
 
         return fullPath;
+    }
+
+    internal void PrepareDestinations(IReadOnlyList<string> paths)
+    {
+        if (paths.Count != _targets.Count) throw new ArgumentException("A destination is required for every target.", nameof(paths));
+        var lockedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var path in paths)
+        {
+            var destination = GetSupportedPath(path);
+            LockParents(destination, lockedDirectories);
+            if (File.Exists(destination) || Directory.Exists(destination)) throw new IOException("Recovery destination already exists.");
+            _destinations.Add(destination);
+        }
+    }
+
+    internal static WindowsCleanupSession PrepareRestore(string batchDirectory, IReadOnlyList<QuarantineEntry> entries)
+    {
+        if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("Restore requires Windows.");
+        var session = new WindowsCleanupSession();
+        try
+        {
+            var lockedDirectories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            var validator = new CleanupValidator();
+            foreach (var entry in entries)
+            {
+                var original = GetSupportedPath(entry.OriginalPath);
+                var stored = GetSupportedPath(Path.Combine(batchDirectory, entry.StoredName));
+                session.LockParents(original, lockedDirectories);
+                session.LockParents(stored, lockedDirectories);
+                if (Directory.Exists(stored) || Directory.Exists(original)) throw new IOException("A recovery path is occupied by a directory.");
+                if (File.Exists(stored))
+                {
+                    if (File.Exists(original)) throw new IOException("Restore would overwrite an existing file. No files were restored.");
+                    var file = OpenFile(stored, deleteAccess: true);
+                    session._targets.Add(file);
+                    session._destinations.Add(original);
+                    validator.ValidateFingerprint(file, entry.SizeBytes, entry.ContentHash);
+                }
+                else
+                {
+                    var file = OpenFile(original, deleteAccess: false);
+                    session._references.Add(file);
+                    validator.ValidateFingerprint(file, entry.SizeBytes, entry.ContentHash);
+                    session.AlreadyOriginalCount++;
+                }
+            }
+            return session;
+        }
+        catch
+        {
+            session.Dispose();
+            throw;
+        }
+    }
+
+    internal void MoveTargets(Action<int>? afterMove = null)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        if (_destinations.Count != _targets.Count) throw new InvalidOperationException("Recovery destinations are not prepared.");
+        for (var index = 0; index < _targets.Count; index++)
+        {
+            var name = Encoding.Unicode.GetBytes(_destinations[index]);
+            var nameOffset = Marshal.OffsetOf<RenameInformation>(nameof(RenameInformation.FileName)).ToInt32();
+            var lengthOffset = Marshal.OffsetOf<RenameInformation>(nameof(RenameInformation.FileNameLength)).ToInt32();
+            var buffer = new byte[Math.Max(Marshal.SizeOf<RenameInformation>(), nameOffset + name.Length + 2)];
+            BitConverter.GetBytes(name.Length).CopyTo(buffer, lengthOffset);
+            name.CopyTo(buffer, nameOffset);
+            if (!SetFileInformationByHandle(_targets[index].SafeFileHandle, FileRenameInformation, buffer, (uint)buffer.Length))
+            {
+                throw new IOException("Recovery move stopped without overwriting a destination.", new Win32Exception(Marshal.GetLastWin32Error()));
+            }
+            MovedCount++;
+            afterMove?.Invoke(MovedCount);
+        }
     }
 
     private void LockParents(string path, HashSet<string> lockedDirectories)
@@ -165,6 +246,7 @@ public sealed class WindowsCleanupSession : IDisposable
     internal void DeleteTargets()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
+        if (!_permanentDeletion) throw new InvalidOperationException("This session does not authorize permanent deletion.");
         // Every validated file remains locked; no path is reopened for deletion.
         foreach (var target in _targets)
         {
@@ -189,10 +271,20 @@ public sealed class WindowsCleanupSession : IDisposable
             target.Dispose();
         }
         _keep?.Dispose();
+        foreach (var reference in _references) reference.Dispose();
         for (var index = _directories.Count - 1; index >= 0; index--)
         {
             _directories[index].Dispose();
         }
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RenameInformation
+    {
+        public uint Flags;
+        public IntPtr RootDirectory;
+        public uint FileNameLength;
+        public char FileName;
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -220,4 +312,8 @@ public sealed class WindowsCleanupSession : IDisposable
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, ref byte information, uint size);
+
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetFileInformationByHandle(SafeFileHandle handle, int informationClass, byte[] information, uint size);
 }

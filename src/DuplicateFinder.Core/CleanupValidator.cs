@@ -9,7 +9,7 @@ public sealed class CleanupValidator
     {
         ArgumentNullException.ThrowIfNull(operation);
         if (!operation.CanExecute || operation.PathsToRemove.Count == 0 ||
-            operation.Action is not DuplicateAction.Delete and not DuplicateAction.MoveToRecycleBin)
+            operation.Action is not DuplicateAction.Delete and not DuplicateAction.MoveToRecycleBin and not DuplicateAction.Quarantine)
         {
             throw new InvalidOperationException("This cleanup operation cannot be executed.");
         }
@@ -74,6 +74,30 @@ public sealed class CleanupValidator
         if (!string.Equals(Convert.ToHexString(hash.GetHashAndReset()), operation.ContentHash, StringComparison.OrdinalIgnoreCase))
         {
             throw new IOException("Files changed since the scan. Rescan before cleanup.");
+        }
+    }
+
+    public void ValidateFingerprint(Stream stream, long sizeBytes, string contentHash, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(stream);
+        if (stream.Length != sizeBytes || string.IsNullOrWhiteSpace(contentHash))
+        {
+            throw new IOException("Recovery file does not match its recorded contents.");
+        }
+
+        stream.Position = 0;
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[64 * 1024];
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var count = stream.Read(buffer);
+            if (count == 0) break;
+            hash.AppendData(buffer, 0, count);
+        }
+        if (!string.Equals(Convert.ToHexString(hash.GetHashAndReset()), contentHash, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IOException("Recovery file does not match its recorded contents.");
         }
     }
 

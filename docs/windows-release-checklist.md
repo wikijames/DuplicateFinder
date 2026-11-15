@@ -2,7 +2,7 @@
 
 This is the remaining work toward a Windows v1 for exact duplicate files. It is not an effort percentage or a promise that the wider roadmap is complete. Image similarity and Android are separate release scopes.
 
-## Current branch: duplicate review workspace
+## Completed: duplicate review workspace
 
 - [x] Start from merged `development`, with the diagnostics and guarded-cleanup work present.
 - [x] Agree the UI direction: simple scan setup followed by split-view results.
@@ -16,11 +16,12 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Recoverable cleanup
 
-- [ ] Implement quarantine or recycle-bin support with equivalent validation and replacement protection.
-- [ ] For quarantine, define the destination, collision-safe names, manifest integrity, interrupted-operation recovery, and cross-volume policy.
-- [ ] Provide restore, including conflict handling and validation of original locations.
-- [ ] Show what completed and what failed during partial cleanup; never silently retry or automatically remove files.
-- [ ] Test permission failures, locked files, disconnected drives and interrupted operations with synthetic fixtures.
+- [x] Implement same-drive quarantine with locked-handle validation and replacement protection.
+- [x] Define destination selection, collision-safe names, protected manifest integrity, interruption recovery, and rejection of cross-volume moves.
+- [x] Provide explicitly confirmed restore, conflict handling, original-path validation and safe repeat/resume behavior.
+- [x] Report completed move counts and batch location during partial failures; never automatically retry or purge.
+- [x] Test deterministic interruptions, stale/locked files, restore conflicts and manifest failures with synthetic fixtures. See [guarded quarantine](guarded-quarantine.md).
+- [ ] Expand release testing for real permission configurations, disconnected drives, power loss and storage failures. Recycle-bin integration remains optional follow-up to the implemented quarantine path.
 
 ## Matching and file-system resilience
 
@@ -31,6 +32,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 - [ ] Measure memory retention on large candidate sets and bound work queues before adding concurrency.
 
 ## Finish Windows UI and accessibility
+
+- [x] Add common file-type presets with visible extension lists and a custom-extension option, while retaining exact matching.
 
 - [ ] Add multiple scan roots and folder drag/drop, with duplicate/overlapping-root handling.
 - [ ] Expose supported size, hidden-file and exclusion options with clear defaults.

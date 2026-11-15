@@ -19,5 +19,6 @@
 
   <ItemGroup>
     <ProjectReference Include="../DuplicateFinder.Core/DuplicateFinder.Core.csproj" />
+    <InternalsVisibleTo Include="DuplicateFinder.Tests" />
   </ItemGroup>
 </Project>

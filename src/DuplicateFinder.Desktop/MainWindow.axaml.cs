@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Layout;
@@ -19,11 +20,15 @@ public partial class MainWindow : Window
     private readonly DuplicateReviewWorkspace _workspace = new();
     private CancellationTokenSource? _scanCancellation;
     private bool _cleanupInProgress;
+    private string? _lastBatchDirectory;
+    private string _customExtensions = string.Empty;
 
     public MainWindow()
     {
         InitializeComponent();
         KeepFileComboBox.SelectionChanged += KeepFileComboBox_SelectionChanged;
+        FileTypeBox.ItemsSource = FileTypePreset.CommonTypes;
+        FileTypeBox.SelectedIndex = 0;
     }
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
@@ -70,10 +75,28 @@ public partial class MainWindow : Window
 
     private void ScanSetup_Changed(object? sender, TextChangedEventArgs e)
     {
+        InvalidateScanSetup();
+    }
+
+    private void InvalidateScanSetup()
+    {
         if (_workspace.Groups.Count > 0 && !_cleanupInProgress && _scanCancellation is null)
         {
             ClearCurrentResults("Scan setup changed. Scan again before reviewing removal.");
         }
+    }
+
+    private void FileTypeBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox { SelectedItem: FileTypePreset preset }) return;
+        if (e.RemovedItems.OfType<FileTypePreset>().Any(previous => previous.IsCustom))
+        {
+            _customExtensions = ExtensionsBox.Text ?? string.Empty;
+        }
+        ExtensionsBox.IsReadOnly = !preset.IsCustom;
+        ExtensionsBox.PlaceholderText = preset.IsCustom ? ".jpg, .pdf, .txt" : "All file extensions";
+        ExtensionsBox.Text = preset.IsCustom ? _customExtensions : preset.Extensions;
+        InvalidateScanSetup();
     }
 
     private void CancelScanButton_Click(object sender, RoutedEventArgs e)
@@ -100,7 +123,7 @@ public partial class MainWindow : Window
         SetScanInProgress(false);
         try
         {
-            var confirmed = await ConfirmCleanupAsync(operation);
+            var (confirmed, destination) = await ConfirmCleanupAsync(operation);
             if (!confirmed)
             {
                 StatusText.Text = "Cleanup cancelled by the user.";
@@ -108,8 +131,21 @@ public partial class MainWindow : Window
             }
 
             StatusText.Text = "Checking files and cleaning up...";
-            await Task.Run(() => new WindowsCleanupService().Execute(operation));
-            ClearCurrentResults("Cleanup completed. Rescan to refresh results.");
+            if (operation.Action == DuplicateAction.Quarantine)
+            {
+                var batch = await Task.Run(() => new QuarantineService().Quarantine(operation, destination!));
+                RememberBatch(batch.DirectoryPath);
+                ClearCurrentResults($"Quarantined {batch.Entries.Count} file(s). Use Restore batch to recover them. Disk usage is unchanged.");
+            }
+            else
+            {
+                await Task.Run(() => new WindowsCleanupService().Execute(operation));
+                ClearCurrentResults("Cleanup completed. Rescan to refresh results.");
+            }
+        }
+        catch (QuarantineInterruptedException exception)
+        {
+            ReportRecoveryInterruption(exception);
         }
         catch (Exception exception)
         {
@@ -187,9 +223,12 @@ public partial class MainWindow : Window
         var busy = scanning || _cleanupInProgress;
         RootPathBox.IsEnabled = !busy;
         ExtensionsBox.IsEnabled = !busy;
+        FileTypeBox.IsEnabled = !busy;
         BrowseButton.IsEnabled = !busy;
         ScanButton.IsEnabled = !busy;
         ResultsList.IsEnabled = !busy;
+        CleanupActionBox.IsEnabled = !busy;
+        RestoreBatchButton.IsEnabled = !busy;
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy && _workspace.Selection is not null;
         CancelScanButton.IsEnabled = scanning;
@@ -214,11 +253,11 @@ public partial class MainWindow : Window
         ScanOptions options;
         try
         {
-            options = ScanSetup.CreateOptions(ExtensionsBox.Text);
+            options = ScanSetup.CreateOptions((FileTypePreset)FileTypeBox.SelectedItem!, ExtensionsBox.Text);
         }
         catch (ArgumentException)
         {
-            ClearCurrentResults("Use comma-separated extensions such as .txt, .jpg or .pdf. Leave blank to scan all file types.");
+            ClearCurrentResults("Choose All files, or enter custom extensions such as .txt, .jpg or .pdf separated by commas.");
             return;
         }
 
@@ -297,49 +336,205 @@ public partial class MainWindow : Window
         StatusText.Text = "Review the selected group. Nothing is removed until you confirm.";
     }
 
-    private async Task<bool> ConfirmCleanupAsync(DuplicateCleanupOperation operation)
+    private async Task<(bool Confirmed, string? Destination)> ConfirmCleanupAsync(DuplicateCleanupOperation operation)
     {
+        var quarantine = operation.Action == DuplicateAction.Quarantine;
         var cancelButton = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
-        var deleteButton = new Button { Content = "Permanently delete selected" };
+        var confirmButton = new Button { Content = quarantine ? "Move to quarantine" : "Permanently delete selected" };
+        var destinationBox = new TextBox { Text = RootPathBox.Text?.Trim() };
+        AutomationProperties.SetAutomationId(destinationBox, "QuarantineDestinationBox");
+        AutomationProperties.SetName(destinationBox, "Quarantine destination folder");
+        var validationText = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var header = new StackPanel { Spacing = 10 };
+        header.Children.Add(new TextBlock
+        {
+            Text = quarantine
+                ? $"Move {operation.PathsToRemove.Count} file(s) into recoverable quarantine? Disk space will not be freed.\nKeep: {operation.KeepPath}"
+                : $"Permanently delete {operation.PathsToRemove.Count} duplicate file(s)? This cannot be undone.\nKeep: {operation.KeepPath}",
+            TextWrapping = TextWrapping.Wrap
+        });
+        if (quarantine)
+        {
+            header.Children.Add(new TextBlock { Text = "Destination folder (same drive). Keep the manifest; restore requires this Windows user profile.", TextWrapping = TextWrapping.Wrap });
+            header.Children.Add(CreateFolderEntry(destinationBox, validationText, "Select a quarantine destination on the same drive"));
+            header.Children.Add(validationText);
+        }
+
+        var targets = new ScrollViewer
+        {
+            Content = new TextBlock { Text = string.Join(Environment.NewLine, operation.PathsToRemove), TextWrapping = TextWrapping.Wrap }
+        };
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
+            Spacing = 8, Children = { cancelButton, confirmButton }
+        };
+        var content = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 16 };
+        Grid.SetRow(targets, 1);
+        Grid.SetRow(buttons, 2);
+        content.Children.Add(header);
+        content.Children.Add(targets);
+        content.Children.Add(buttons);
         var dialog = new Window
         {
             Title = "Confirm duplicate cleanup",
-            Width = 600,
-            Height = 360,
+            Width = 640,
+            Height = 480,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
-            {
-                Margin = new Thickness(20),
-                Spacing = 16,
-                Children =
-                {
-                    new TextBlock
-                    {
-                        Text = $"Permanently delete {operation.PathsToRemove.Count} duplicate file(s)? This cannot be undone.\nKeep: {operation.KeepPath}",
-                        TextWrapping = TextWrapping.Wrap
-                    },
-                    new ScrollViewer
-                    {
-                        MaxHeight = 150,
-                        Content = new TextBlock
-                        {
-                            Text = string.Join(Environment.NewLine, operation.PathsToRemove),
-                            TextWrapping = TextWrapping.Wrap
-                        }
-                    },
-                    new StackPanel
-                    {
-                        Orientation = Orientation.Horizontal,
-                        HorizontalAlignment = HorizontalAlignment.Right,
-                        Spacing = 8,
-                        Children = { cancelButton, deleteButton }
-                    }
-                }
-            }
+            Content = content
         };
 
         cancelButton.Click += (_, _) => dialog.Close(false);
-        deleteButton.Click += (_, _) => dialog.Close(true);
+        confirmButton.Click += (_, _) =>
+        {
+            if (quarantine && !Directory.Exists(destinationBox.Text?.Trim()))
+            {
+                validationText.Text = "Enter an existing folder on the same drive as the reviewed files.";
+                return;
+            }
+            dialog.Close(true);
+        };
+        var confirmed = await dialog.ShowDialog<bool>(this);
+        return (confirmed, quarantine ? destinationBox.Text?.Trim() : null);
+    }
+
+    private void CleanupActionBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox actionBox) return;
+        _workspace.SetCleanupAction(actionBox.SelectedIndex == 1 ? DuplicateAction.Delete : DuplicateAction.Quarantine);
+        if (_workspace.Selection is not null) RefreshReview();
+    }
+
+    private void RememberBatch(string directory)
+    {
+        _lastBatchDirectory = directory;
+        RecoveryText.Text = "Recovery batch: " + directory;
+        ToolTip.SetTip(RecoveryText, directory);
+        RecoveryText.IsVisible = true;
+    }
+
+    private void ReportRecoveryInterruption(QuarantineInterruptedException exception)
+    {
+        Trace.TraceError("Recovery operation interrupted ({0}).", exception.GetType().Name);
+        RememberBatch(exception.BatchDirectory);
+        ClearCurrentResults($"Recovery operation stopped after {exception.CompletedCount} move(s). Keep the batch; use Restore batch after resolving conflicts.");
+    }
+
+    private async void RestoreBatchButton_Click(object? sender, RoutedEventArgs e)
+    {
+        if (_cleanupInProgress || _scanCancellation is not null) return;
+        _cleanupInProgress = true;
+        SetScanInProgress(false);
+        try
+        {
+            var directory = await PromptForBatchAsync();
+            if (directory is null)
+            {
+                StatusText.Text = "Restore cancelled. No files moved.";
+                return;
+            }
+            var service = new QuarantineService();
+            StatusText.Text = "Reading recovery manifest...";
+            var batch = await Task.Run(() => service.Inspect(directory));
+            if (!await ConfirmRestoreAsync(batch))
+            {
+                StatusText.Text = "Restore cancelled. No files moved.";
+                return;
+            }
+            RememberBatch(batch.DirectoryPath);
+            StatusText.Text = "Checking recovery files and restoring...";
+            var result = await Task.Run(() => service.Restore(batch));
+            RememberBatch(batch.DirectoryPath);
+            ClearCurrentResults($"Restored {result.RestoredCount} file(s); {result.AlreadyOriginalCount} already at their original locations. Rescan to refresh results.");
+        }
+        catch (QuarantineInterruptedException exception)
+        {
+            ReportRecoveryInterruption(exception);
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceError("Restore failed ({0}).", exception.GetType().Name);
+            ClearCurrentResults("Restore stopped. Check the batch, original folders and file conflicts. No existing file is overwritten.");
+        }
+        finally
+        {
+            _cleanupInProgress = false;
+            SetScanInProgress(false);
+        }
+    }
+
+    private async Task<string?> PromptForBatchAsync()
+    {
+        var pathBox = new TextBox { Text = _lastBatchDirectory, PlaceholderText = "Paste the batch folder path" };
+        AutomationProperties.SetAutomationId(pathBox, "RestoreBatchPathBox");
+        AutomationProperties.SetName(pathBox, "Recovery batch folder");
+        var cancel = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
+        var review = new Button { Content = "Review restore" };
+        var validationText = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var dialog = new Window
+        {
+            Title = "Select recovery batch", Width = 640, Height = 280, WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Content = new StackPanel
+            {
+                Margin = new Thickness(20), Spacing = 16,
+                Children =
+                {
+                    new TextBlock { Text = "Select a batch folder inside .DuplicateFinder-Quarantine. The protected manifest requires the original Windows account.", TextWrapping = TextWrapping.Wrap },
+                    CreateFolderEntry(pathBox, validationText, "Select a quarantine batch folder"),
+                    validationText,
+                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, review } }
+                }
+            }
+        };
+        cancel.Click += (_, _) => dialog.Close(false);
+        review.Click += (_, _) => dialog.Close(true);
+        return await dialog.ShowDialog<bool>(this) ? pathBox.Text?.Trim() : null;
+    }
+
+    private Grid CreateFolderEntry(TextBox pathBox, TextBlock validationText, string title)
+    {
+        var browse = new Button { Content = "Browse" };
+        var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
+        Grid.SetColumn(browse, 1);
+        row.Children.Add(pathBox);
+        row.Children.Add(browse);
+        browse.Click += async (_, _) =>
+        {
+            try
+            {
+                var provider = TopLevel.GetTopLevel(pathBox)?.StorageProvider;
+                if (provider is null) return;
+                var folders = await provider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = title, AllowMultiple = false });
+                var selectedPath = folders.FirstOrDefault()?.Path.LocalPath;
+                if (!string.IsNullOrWhiteSpace(selectedPath)) pathBox.Text = selectedPath;
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError("Recovery folder selection failed ({0}).", exception.GetType().Name);
+                validationText.Text = "Folder selection failed. Enter or paste the folder path instead.";
+            }
+        };
+        return row;
+    }
+
+    private async Task<bool> ConfirmRestoreAsync(QuarantineBatch batch)
+    {
+        var cancel = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
+        var restore = new Button { Content = "Restore files" };
+        var targets = new ScrollViewer
+        {
+            Content = new TextBlock { Text = string.Join(Environment.NewLine, batch.Entries.Select(entry => entry.OriginalPath)), TextWrapping = TextWrapping.Wrap }
+        };
+        var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, restore } };
+        var content = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 16 };
+        content.Children.Add(new TextBlock { Text = $"Review {batch.Entries.Count} recovery entry/entries. Files still in quarantine will return to these original paths. Existing files are never overwritten; matching files already restored are left alone.", TextWrapping = TextWrapping.Wrap });
+        Grid.SetRow(targets, 1);
+        Grid.SetRow(buttons, 2);
+        content.Children.Add(targets);
+        content.Children.Add(buttons);
+        var dialog = new Window { Title = "Confirm batch restore", Width = 640, Height = 420, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        cancel.Click += (_, _) => dialog.Close(false);
+        restore.Click += (_, _) => dialog.Close(true);
         return await dialog.ShowDialog<bool>(this);
     }
 }

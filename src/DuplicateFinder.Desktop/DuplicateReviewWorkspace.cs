@@ -13,6 +13,18 @@ public sealed class DuplicateReviewWorkspace
     public IReadOnlyList<DuplicateGroup> Groups { get; private set; } = Array.Empty<DuplicateGroup>();
     public DuplicateReviewSelection? Selection { get; private set; }
     public DuplicateCleanupOperation? CleanupOperation { get; private set; }
+    public DuplicateAction CleanupAction { get; private set; } = DuplicateAction.Quarantine;
+
+    public void SetCleanupAction(DuplicateAction action)
+    {
+        if (action is not DuplicateAction.Delete and not DuplicateAction.Quarantine)
+        {
+            throw new ArgumentOutOfRangeException(nameof(action));
+        }
+        CleanupAction = action;
+        CleanupOperation = null;
+        if (Selection is not null) UpdateOperation();
+    }
 
     public void Load(IReadOnlyList<DuplicateGroup> groups)
     {
@@ -51,7 +63,7 @@ public sealed class DuplicateReviewWorkspace
         var selection = Selection!;
         // Mirror the bounded Windows cleanup limit; larger groups remain reviewable.
         if (selection.RemoveFilePaths.Count > 128 || string.IsNullOrWhiteSpace(selection.Group.ContentHash)) return;
-        var plan = new DuplicateCleanupPlan(selection, DuplicateAction.Delete);
+        var plan = new DuplicateCleanupPlan(selection, CleanupAction);
         CleanupOperation = new DuplicateCleanupOperation(new DuplicateCleanupExecution(plan));
     }
 

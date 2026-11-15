@@ -40,12 +40,15 @@
                             Background="#77D4C3" Foreground="#102722" FontWeight="SemiBold" />
                     <Button Grid.Column="3" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" />
                 </Grid>
-                <Grid Grid.Row="2" ColumnDefinitions="Auto,240,*" ColumnSpacing="12">
-                    <TextBlock Classes="muted" Text="Extensions" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Name="ExtensionsBox" PlaceholderText="All types, or .jpg, .pdf, .txt"
-                             AutomationProperties.Name="Optional file extensions" TextChanged="ScanSetup_Changed" />
-                    <TextBlock Grid.Column="2" Classes="muted" Text="Leave blank for all file types. Images and videos use exact content matching."
-                               TextWrapping="Wrap" VerticalAlignment="Center" FontSize="12" />
+                <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
+                    <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
+                    <ComboBox Grid.Column="1" Name="FileTypeBox" HorizontalAlignment="Stretch"
+                              AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
+                    <TextBox Grid.Column="2" Name="ExtensionsBox" PlaceholderText="All file extensions" IsReadOnly="True"
+                             AutomationProperties.Name="Included file extensions" TextChanged="ScanSetup_Changed" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Classes="muted"
+                               Text="Choose Custom extensions to edit the list. Every category uses exact content matching."
+                               TextWrapping="Wrap" FontSize="12" />
                 </Grid>
             </Grid>
         </Border>
@@ -55,7 +58,7 @@
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
                 <TextBlock><Run Name="GroupCountText" Text="0" /><Run Text=" groups" /></TextBlock>
                 <TextBlock><Run Name="DuplicateFileCountText" Text="0" /><Run Text=" files" /></TextBlock>
-                <TextBlock Foreground="#8EE2D4"><Run Name="ReclaimableText" Text="0 B" /><Run Text=" reclaimable" /></TextBlock>
+                <TextBlock Foreground="#8EE2D4"><Run Name="ReclaimableText" Text="0 B" /><Run Text=" in extra copies" /></TextBlock>
             </StackPanel>
         </Grid>
 
@@ -117,11 +120,19 @@
         </Grid>
 
         <Border Grid.Row="4" Background="#17232E" CornerRadius="10" Padding="16,12">
-            <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto" ColumnSpacing="18" RowSpacing="8">
-                <TextBlock Name="StatusText" Text="Ready to scan. Nothing is removed automatically." VerticalAlignment="Center" TextWrapping="Wrap" />
-                <Button Grid.Column="1" Name="CleanupButton" Content="Review removal" Click="CleanupButton_Click" IsEnabled="False"
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="14" RowSpacing="8">
+                <TextBlock Grid.ColumnSpan="3" Name="StatusText" Text="Ready to scan. Nothing is removed automatically." VerticalAlignment="Center" TextWrapping="Wrap" />
+                <ComboBox Grid.Row="1" Name="CleanupActionBox" SelectedIndex="0" SelectionChanged="CleanupActionBox_SelectionChanged"
+                          Width="240" AutomationProperties.Name="Cleanup action">
+                    <ComboBoxItem Content="Quarantine (recoverable)" />
+                    <ComboBoxItem Content="Permanently delete" />
+                </ComboBox>
+                <Button Grid.Row="1" Grid.Column="1" Name="RestoreBatchButton" Content="Restore batch" Click="RestoreBatchButton_Click" />
+                <Button Grid.Row="1" Grid.Column="2" Name="CleanupButton" Content="Review removal" Click="CleanupButton_Click" IsEnabled="False"
                         Background="#58363B" Foreground="#FFE2E2" />
-                <ProgressBar Grid.Row="1" Grid.ColumnSpan="2" Name="ScanProgressIndicator" Height="3" IsIndeterminate="True" IsVisible="False" />
+                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Name="RecoveryText" IsVisible="False" Classes="muted" FontSize="11"
+                           TextTrimming="CharacterEllipsis" />
+                <ProgressBar Grid.Row="3" Grid.ColumnSpan="3" Name="ScanProgressIndicator" Height="3" IsIndeterminate="True" IsVisible="False" />
             </Grid>
         </Border>
     </Grid>
