@@ -29,3 +29,11 @@ jobs:
         run: dotnet build DuplicateFinder.slnx --configuration Release --no-restore
       - name: Run tests
         run: dotnet test DuplicateFinder.slnx --configuration Release --no-build --no-restore
+      - name: Validate synthetic benchmark workloads
+        shell: pwsh
+        run: |
+          # Cancellation timing is measured locally; deterministic cancellation tests run above.
+          foreach ($scenario in @('small-duplicates', 'mostly-unique', 'large-duplicates')) {
+            dotnet tools/DuplicateFinder.Benchmarks/bin/Release/net10.0/DuplicateFinder.Benchmarks.dll $scenario smoke
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }

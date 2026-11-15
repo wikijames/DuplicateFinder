@@ -6,4 +6,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/DuplicateFinder.Tests/DuplicateFinder.Tests.csproj" />
   </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/DuplicateFinder.Benchmarks/DuplicateFinder.Benchmarks.csproj" />
+  </Folder>
 </Solution>

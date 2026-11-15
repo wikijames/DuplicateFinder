@@ -1,6 +1,7 @@
 namespace DuplicateFinder.Core;
 
 using System.Security.Cryptography;
+using System.Buffers;
 
 public sealed class DuplicateDetector
 {
@@ -283,39 +284,46 @@ public sealed class DuplicateDetector
     internal static string ComputeHash(Stream stream, CancellationToken cancellationToken, long? maxBytes = null, Action<int>? reportBytes = null)
     {
         using var sha256 = SHA256.Create();
-        var buffer = new byte[1024 * 1024];
+        var buffer = ArrayPool<byte>.Shared.Rent(64 * 1024);
         long bytesProcessed = 0;
-
-        while (true)
+        try
         {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
+                {
+                    break;
+                }
+
+                var remainingBytes = maxBytes.HasValue ? maxBytes.Value - bytesProcessed : buffer.Length;
+                var bytesToRead = remainingBytes < buffer.Length ? (int)remainingBytes : buffer.Length;
+
+                var bytesRead = stream.Read(buffer, 0, bytesToRead);
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                bytesProcessed += bytesRead;
+                reportBytes?.Invoke(bytesRead);
+                sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
+
+                if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
+                {
+                    break;
+                }
+            }
+
             cancellationToken.ThrowIfCancellationRequested();
-
-            if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
-            {
-                break;
-            }
-
-            var remainingBytes = maxBytes.HasValue ? maxBytes.Value - bytesProcessed : buffer.Length;
-            var bytesToRead = remainingBytes < buffer.Length ? (int)remainingBytes : buffer.Length;
-
-            var bytesRead = stream.Read(buffer, 0, bytesToRead);
-            if (bytesRead == 0)
-            {
-                break;
-            }
-
-            bytesProcessed += bytesRead;
-            reportBytes?.Invoke(bytesRead);
-            sha256.TransformBlock(buffer, 0, bytesRead, null, 0);
-
-            if (maxBytes.HasValue && bytesProcessed >= maxBytes.Value)
-            {
-                break;
-            }
+            sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
+            return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
-        sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
-        return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
+        finally
+        {
+            // Do not retain file content in a shared reusable buffer.
+            ArrayPool<byte>.Shared.Return(buffer, clearArray: true);
+        }
     }
 }
