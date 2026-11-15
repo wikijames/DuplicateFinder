@@ -45,7 +45,7 @@ public partial class MainWindow
 
     private async void PreviewFileButton_Click(object? sender, RoutedEventArgs e)
     {
-        if (SetupIsBusy || GroupFilesList.SelectedItem is not DuplicateFileItem file) return;
+        if (SetupIsBusy || GroupFilesList.SelectedItem is not FileReviewRow file) return;
         _setupDialogOpen = true;
         using var cancellation = new CancellationTokenSource();
         _previewCancellation = cancellation;
@@ -57,7 +57,9 @@ public partial class MainWindow
             cancellation.Token.ThrowIfCancellationRequested();
             var close = new Button { Content = "Close", IsCancel = true, IsDefault = true, HorizontalAlignment = HorizontalAlignment.Right };
             var content = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,Auto,*,Auto"), RowSpacing = 12 };
-            content.Children.Add(new TextBlock { Text = file.FullPath, TextWrapping = TextWrapping.Wrap });
+            var path = new TextBox { Text = file.FullPath, IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 80 };
+            Avalonia.Automation.AutomationProperties.SetName(path, "Preview file path");
+            content.Children.Add(path);
             var message = new TextBlock { Text = result.Message, TextWrapping = TextWrapping.Wrap };
             Grid.SetRow(message, 1);
             content.Children.Add(message);
@@ -67,7 +69,8 @@ public partial class MainWindow
             content.Children.Add(text);
             Grid.SetRow(close, 3);
             content.Children.Add(close);
-            var dialog = new Window { Title = "File preview", Width = 760, Height = 520, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var dialog = new Window { Title = "File preview", Width = 760, Height = 520, MinWidth = 480, MinHeight = 360, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            dialog.Opened += (_, _) => close.Focus();
             close.Click += (_, _) => dialog.Close();
             await dialog.ShowDialog(this);
             StatusText.Text = _scanCompletionStatus ?? "Preview closed.";
@@ -78,6 +81,7 @@ public partial class MainWindow
             _previewCancellation = null;
             _setupDialogOpen = false;
             SetScanInProgress(false);
+            if (PreviewFileButton.IsEnabled) PreviewFileButton.Focus();
         }
     }
 }

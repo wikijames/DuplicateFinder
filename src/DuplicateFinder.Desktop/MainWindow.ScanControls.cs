@@ -91,7 +91,7 @@ public partial class MainWindow
             Grid.SetRow(actions, 2);
             content.Children.Add(list);
             content.Children.Add(actions);
-            var dialog = new Window { Title = "Selected scan folders", Width = 740, Height = 420, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            var dialog = new Window { Title = "Selected scan folders", Width = 740, Height = 420, MinWidth = 480, MinHeight = 320, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
             list.SelectionChanged += (_, _) => remove.IsEnabled = list.SelectedItem is string;
             remove.Click += (_, _) =>
             {
@@ -115,6 +115,7 @@ public partial class MainWindow
         {
             _setupDialogOpen = false;
             SetScanInProgress(false);
+            ManageFoldersButton.Focus();
         }
     }
 
@@ -137,9 +138,12 @@ public partial class MainWindow
             AutomationProperties.SetAutomationId(exclusions, "ExcludedFoldersBox");
             AutomationProperties.SetName(exclusions, "Additional excluded folder names");
             var validation = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
+            AutomationProperties.SetName(validation, "Scan settings validation");
+            AutomationProperties.SetLiveSetting(validation, AutomationLiveSetting.Polite);
             var apply = new Button { Content = "Apply settings" };
             var cancel = new Button { Content = "Cancel", IsDefault = true, IsCancel = true };
             var reset = new Button { Content = "Reset defaults" };
+            var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { reset, cancel, apply } };
             var content = new StackPanel
             {
                 Margin = new Thickness(20), Spacing = 12,
@@ -149,11 +153,11 @@ public partial class MainWindow
                     new TextBlock { Text = "Maximum size (MiB)" }, maximum, hidden,
                     new TextBlock { Text = "Additional excluded subfolder names (comma-separated)" }, exclusions,
                     new TextBlock { Text = "Protected defaults and quarantine exclusions remain active. Options apply to every selected folder.", TextWrapping = Avalonia.Media.TextWrapping.Wrap },
-                    validation,
-                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { reset, cancel, apply } }
+                    validation
                 }
             };
-            var dialog = new Window { Title = "Scan settings", Width = 640, Height = 540, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            content.Margin = new Thickness(0);
+            var dialog = CreateReviewDialog("Scan settings", content, actions, cancel);
             ScanFilterSettings? reviewedSettings = null;
             apply.Click += (_, _) =>
             {
@@ -183,6 +187,7 @@ public partial class MainWindow
         {
             _setupDialogOpen = false;
             SetScanInProgress(false);
+            ScanSettingsButton.Focus();
         }
     }
 }

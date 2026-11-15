@@ -5,19 +5,6 @@
         Title="DuplicateFinder"
         Width="1120" Height="740" MinWidth="920" MinHeight="660"
         Background="{DynamicResource WorkspaceBackground}" Foreground="{DynamicResource WorkspaceForeground}">
-    <Window.Styles>
-        <Style Selector="TextBlock.muted">
-            <Setter Property="Foreground" Value="{DynamicResource WorkspaceMuted}" />
-        </Style>
-        <Style Selector="Button">
-            <Setter Property="Padding" Value="16,10" />
-            <Setter Property="CornerRadius" Value="7" />
-        </Style>
-        <Style Selector="ListBoxItem">
-            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
-            <Setter Property="Padding" Value="12" />
-        </Style>
-    </Window.Styles>
     <Grid Margin="16" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="10">
         <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="4">
@@ -66,17 +53,24 @@
             <TextBlock Text="Scan results" FontSize="18" FontWeight="SemiBold" />
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="20" VerticalAlignment="Center">
                 <TextBlock><Run Name="GroupCountText" Text="0" /><Run Text=" groups" /></TextBlock>
-                <TextBlock><Run Name="DuplicateFileCountText" Text="0" /><Run Text=" files" /></TextBlock>
-                <TextBlock Foreground="{DynamicResource WorkspaceAccentText}"><Run Name="ReclaimableText" Text="0 B" /><Run Text=" in extra copies" /></TextBlock>
+                <TextBlock><Run Name="DuplicateFileCountText" Text="0" /><Run Text=" files in groups" /></TextBlock>
+                <TextBlock Foreground="{DynamicResource WorkspaceAccentText}" ToolTip.Tip="Content in extra copies. Quarantine does not free disk space."><Run Name="ReclaimableText" Text="0 B" /><Run Text=" extra-copy content" /></TextBlock>
             </StackPanel>
-            <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Name="ScanWarningText" IsVisible="False" Foreground="{DynamicResource WorkspaceWarning}"
-                       FontSize="12" TextWrapping="Wrap" />
+            <Border Grid.Row="1" Grid.ColumnSpan="2" Name="ScanWarningPanel" IsVisible="False" Classes="reviewSection" Padding="10,6" BorderBrush="{DynamicResource WorkspaceWarning}">
+                <TextBlock Name="ScanWarningText" IsVisible="False" Foreground="{DynamicResource WorkspaceWarning}"
+                           FontSize="12" TextWrapping="Wrap" />
+            </Border>
         </Grid>
 
-        <Grid Grid.Row="3" ColumnDefinitions="300,12,*">
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="280" MinWidth="220" MaxWidth="420" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="*" MinWidth="400" />
+            </Grid.ColumnDefinitions>
             <Border Background="{DynamicResource WorkspaceInset}" BorderBrush="{DynamicResource WorkspaceBorder}" BorderThickness="1" CornerRadius="10" ClipToBounds="True">
                 <Grid RowDefinitions="Auto,Auto,*">
-                    <TextBlock Margin="16,14" Classes="muted" Text="DUPLICATE GROUPS" FontSize="11" FontWeight="SemiBold" />
+                    <TextBlock Margin="14,10" Classes="section" Text="Duplicate groups" />
                     <StackPanel Grid.Row="1" Margin="12,0,12,8" Spacing="6">
                         <TextBox Name="ResultsSearchBox" PlaceholderText="Search names or paths" AutomationProperties.Name="Search duplicate groups" ToolTip.Tip="Search filenames and paths (Ctrl+F)" TextChanged="ResultsSearch_Changed" />
                         <ComboBox Name="ResultsSortBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Sort duplicate groups" SelectionChanged="ResultsSort_Changed" />
@@ -87,24 +81,25 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="local:DuplicateGroupItem">
                                 <StackPanel Spacing="5">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
                                     <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
                                     <TextBlock Text="{Binding Reclaimable}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
-                    <TextBlock Grid.Row="2" Name="EmptyResultsText" Margin="22" Classes="muted" Text="Choose a folder and start a scan."
+                    <TextBlock Grid.Row="2" Name="EmptyResultsText" Margin="22" Classes="muted" Text="Add folders above, then choose Scan folders."
                                TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" IsHitTestVisible="False" />
                 </Grid>
             </Border>
             <GridSplitter Grid.Column="1" Width="6" HorizontalAlignment="Center" Background="Transparent"
+                          MinWidth="6"
                           AutomationProperties.Name="Resize group and file panels" />
             <Border Grid.Column="2" Background="{DynamicResource WorkspacePanel}" BorderBrush="{DynamicResource WorkspaceBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
                 <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="6">
                     <TextBlock Name="SelectedGroupTitle" Text="Choose a duplicate group" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12">
-                        <TextBlock Text="Keep file" VerticalAlignment="Center" />
+                        <TextBlock Text="File to keep" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1" Name="KeepFileComboBox" HorizontalAlignment="Stretch" IsEnabled="False"
                                   AutomationProperties.Name="File to keep" ToolTip.Tip="Keep one file. Review the remaining copies before confirming removal.">
                             <ComboBox.ItemTemplate>
@@ -115,16 +110,20 @@
                         </ComboBox>
                     </Grid>
                     <ListBox Grid.Row="2" Name="GroupFilesList" Background="Transparent" SelectionMode="Single"
-                             AutomationProperties.Name="Files in selected group">
+                             ToolTip.Tip="Select a row to preview. Use File to keep above to protect exactly one file."
+                             AutomationProperties.Name="Files in selected group; row selection is for preview">
                         <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="local:DuplicateFileItem">
-                                <StackPanel Spacing="5" Margin="0,3">
+                            <DataTemplate x:DataType="local:FileReviewRow">
+                                <StackPanel Spacing="6" AutomationProperties.Name="{Binding AccessibleName}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="12" />
                                     </Grid>
-                                    <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Disposition}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="10" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />
+                                    <Border IsVisible="{Binding IsKeep}" Background="{DynamicResource WorkspaceBadge}" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left">
+                                        <TextBlock Text="KEEP · Protected in this group" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" FontWeight="SemiBold" />
+                                    </Border>
+                                    <TextBlock IsVisible="{Binding IsRemovalCandidate}" Text="Removal candidate · Requires confirmation" Classes="muted" FontSize="12" TextWrapping="Wrap" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -150,7 +149,10 @@
                         Background="{DynamicResource WorkspaceDanger}" Foreground="{DynamicResource WorkspaceOnDanger}" />
                 <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Name="RecoveryText" IsVisible="False" Classes="muted" FontSize="11"
                            TextTrimming="CharacterEllipsis" />
-                <ProgressBar Grid.Row="3" Grid.ColumnSpan="3" Name="ScanProgressIndicator" Height="3" IsIndeterminate="True" IsVisible="False" AutomationProperties.Name="Operation in progress; total work unknown" />
+                <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Spacing="6">
+                    <TextBlock Name="ScanWorkText" IsVisible="False" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                    <ProgressBar Name="ScanProgressIndicator" Height="3" IsIndeterminate="True" IsVisible="False" AutomationProperties.Name="Operation in progress; total work unknown" />
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

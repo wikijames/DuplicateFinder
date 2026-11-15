@@ -34,6 +34,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Finish Windows UI and accessibility
 
+- [x] Refine the existing review hierarchy, keep-file presentation, theme/focus styles and scrollable confirmation dialogs without changing service contracts. See [scope and synthetic UI validation](windows-ui-refinement.md).
+
 - [x] Add common file-type presets with visible extension lists and a custom-extension option, while retaining exact matching.
 
 - [x] Add multiple scan roots and folder drag/drop, with duplicate/overlapping-root handling. Native Explorer drag/drop remains a manual release check; see [scan controls and validation](multiple-scan-folders.md).
