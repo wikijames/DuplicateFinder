@@ -37,6 +37,8 @@ It checks three-copy matching, a non-default keep choice, preview without changi
 
 The smoke test passed locally. It is not a performance benchmark or a complete keyboard/accessibility audit and requires an interactive Windows session. CI retains the existing build/test checks.
 
+A self-contained Windows x64 UI test ZIP was also published locally. One initial extracted-package scan reported a sanitized IOException before accepting the synthetic folder. Explicit Add followed by Scan succeeded, and three fresh extracted-package launches then passed direct scanning and confirmation cancellation. The initial failure was not reproduced or diagnosed; retain it as a release-testing follow-up rather than claiming a fix. No scan or filesystem service was changed to bypass the failure.
+
 ## Remaining validation
 
 Narrator speech and live updates, Windows high contrast, full keyboard traversal, 125–200% display scaling, rendered interaction-state contrast and the broader long-path/storage matrix remain release gates. Large-result search remains synchronous; debounce or item-reuse optimization is deferred until UI measurements justify changing interaction timing. No individual removal selection, thumbnails, additional file metadata, similarity features or automatic keep selection were introduced.
