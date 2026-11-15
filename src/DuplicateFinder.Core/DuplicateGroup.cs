@@ -2,19 +2,22 @@ namespace DuplicateFinder.Core;
 
 public sealed class DuplicateGroup
 {
-    public DuplicateGroup(IEnumerable<string> filePaths, long sizeBytes)
+    public DuplicateGroup(IEnumerable<string> filePaths, long sizeBytes, string? contentHash = null)
     {
         FilePaths = filePaths
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-            .ToList();
+            .ToList().AsReadOnly();
 
         SizeBytes = sizeBytes;
+        ContentHash = contentHash;
         ReclaimableBytes = Math.Max(0, sizeBytes * Math.Max(0, FilePaths.Count - 1));
     }
 
     public IReadOnlyList<string> FilePaths { get; }
 
     public long SizeBytes { get; }
+
+    public string? ContentHash { get; }
 
     public long ReclaimableBytes { get; }
 }
@@ -60,6 +63,23 @@ public sealed class DuplicateReviewDecision
 
 public sealed class DuplicateCleanupPlan
 {
+    public DuplicateCleanupPlan(DuplicateReviewSelection selection, DuplicateAction action)
+    {
+        ArgumentNullException.ThrowIfNull(selection);
+        if (action is not DuplicateAction.Delete and not DuplicateAction.MoveToRecycleBin)
+        {
+            throw new ArgumentOutOfRangeException(nameof(action), "A cleanup plan requires a delete or recycle-bin action.");
+        }
+
+        Action = action;
+        ContentHash = selection.Group.ContentHash;
+        SizeBytes = selection.Group.SizeBytes;
+        SelectedFilePath = selection.KeepFilePath;
+        KeepPath = selection.KeepFilePath;
+        PathsToRemove = selection.RemoveFilePaths.ToArray();
+        CanExecute = PathsToRemove.Count > 0;
+    }
+
     public DuplicateCleanupPlan(DuplicateReviewDecision decision)
     {
         if (decision is null)
@@ -68,6 +88,8 @@ public sealed class DuplicateCleanupPlan
         }
 
         Action = decision.Action;
+        ContentHash = decision.Group.ContentHash;
+        SizeBytes = decision.Group.SizeBytes;
         SelectedFilePath = decision.SelectedFilePath;
 
         if (decision.Group.FilePaths.Count <= 1)
@@ -126,6 +148,10 @@ public sealed class DuplicateCleanupPlan
     public IReadOnlyList<string> PathsToRemove { get; }
 
     public bool CanExecute { get; }
+
+    public string? ContentHash { get; }
+
+    public long SizeBytes { get; }
 }
 
 public sealed class DuplicateCleanupExecution
@@ -143,6 +169,8 @@ public sealed class DuplicateCleanupExecution
         }
 
         Action = plan.Action;
+        ContentHash = plan.ContentHash;
+        SizeBytes = plan.SizeBytes;
         KeepPath = plan.KeepPath;
         PathsToRemove = plan.PathsToRemove.ToArray();
         CanExecute = true;
@@ -155,6 +183,10 @@ public sealed class DuplicateCleanupExecution
     public IReadOnlyList<string> PathsToRemove { get; }
 
     public bool CanExecute { get; }
+
+    public string? ContentHash { get; }
+
+    public long SizeBytes { get; }
 }
 
 public sealed class DuplicateCleanupExecutor
@@ -185,6 +217,8 @@ public sealed class DuplicateCleanupOperation
         }
 
         Action = execution.Action;
+        ContentHash = execution.ContentHash;
+        SizeBytes = execution.SizeBytes;
         KeepPath = execution.KeepPath;
         PathsToRemove = execution.PathsToRemove.ToArray();
         CanExecute = true;
@@ -197,6 +231,10 @@ public sealed class DuplicateCleanupOperation
     public IReadOnlyList<string> PathsToRemove { get; }
 
     public bool CanExecute { get; }
+
+    public string? ContentHash { get; }
+
+    public long SizeBytes { get; }
 }
 
 public sealed class DuplicateCleanupAdapter

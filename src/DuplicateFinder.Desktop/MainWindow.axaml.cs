@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -16,6 +18,8 @@ public partial class MainWindow : Window
 {
     private DuplicateCleanupOperation? _pendingOperation;
     private DuplicateGroup? _currentDuplicateGroup;
+    private CancellationTokenSource? _scanCancellation;
+    private bool _cleanupInProgress;
 
     public MainWindow()
     {
@@ -25,6 +29,18 @@ public partial class MainWindow : Window
     }
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
+    {
+        try
+        {
+            await BrowseForRootAsync();
+        }
+        catch (Exception exception)
+        {
+            ReportOperationFailure("Folder selection", exception);
+        }
+    }
+
+    private async Task BrowseForRootAsync()
     {
         var pickerOptions = new FolderPickerOpenOptions
         {
@@ -46,32 +62,58 @@ public partial class MainWindow : Window
         }
 
         RootPathBox.Text = selectedPath;
-        TryScanCurrentRoot();
+        await TryScanCurrentRootAsync();
     }
 
-    private void ScanButton_Click(object sender, RoutedEventArgs e)
+    private async void ScanButton_Click(object sender, RoutedEventArgs e)
     {
-        TryScanCurrentRoot();
+        await TryScanCurrentRootAsync();
+    }
+
+    private void CancelScanButton_Click(object sender, RoutedEventArgs e)
+    {
+        _scanCancellation?.Cancel();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _scanCancellation?.Cancel();
+        base.OnClosed(e);
     }
 
     private async void CleanupButton_Click(object sender, RoutedEventArgs e)
     {
-        if (_pendingOperation is null)
+        if (_pendingOperation is null || _cleanupInProgress || _scanCancellation is not null)
         {
             ResultsList.ItemsSource = new[] { "No duplicate group is currently selected for cleanup." };
             return;
         }
 
-        var confirmed = await ConfirmCleanupAsync(_pendingOperation.KeepPath);
-        if (!confirmed)
+        var operation = _pendingOperation;
+        _cleanupInProgress = true;
+        SetScanInProgress(false);
+        try
         {
-            ResultsList.ItemsSource = new[] { "Cleanup cancelled by the user." };
-            return;
-        }
+            var confirmed = await ConfirmCleanupAsync(operation);
+            if (!confirmed)
+            {
+                StatusText.Text = "Cleanup cancelled by the user.";
+                return;
+            }
 
-        var service = new WindowsCleanupService();
-        service.Execute(_pendingOperation);
-        ResultsList.ItemsSource = new[] { "Cleanup executed successfully." };
+            StatusText.Text = "Checking files and cleaning up...";
+            await Task.Run(() => new WindowsCleanupService().Execute(operation));
+            ClearCurrentResults("Cleanup completed. Rescan to refresh results.");
+        }
+        catch (Exception exception)
+        {
+            ReportOperationFailure("Cleanup", exception);
+        }
+        finally
+        {
+            _cleanupInProgress = false;
+            SetScanInProgress(false);
+        }
     }
 
     private void KeepFileComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -89,26 +131,69 @@ public partial class MainWindow : Window
         UpdateReviewSelection(keepPath);
     }
 
-    private void TryScanCurrentRoot()
+    private async Task TryScanCurrentRootAsync()
+    {
+        if (_scanCancellation is not null || _cleanupInProgress)
+        {
+            return;
+        }
+
+        using var cancellation = new CancellationTokenSource();
+        _scanCancellation = cancellation;
+        SetScanInProgress(true);
+        try
+        {
+            await ScanCurrentRootAsync(cancellation.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            ClearCurrentResults("Scan cancelled.");
+            Trace.TraceInformation("Scan cancelled.");
+        }
+        catch (Exception exception)
+        {
+            ReportOperationFailure("Scan", exception);
+        }
+        finally
+        {
+            _scanCancellation = null;
+            SetScanInProgress(false);
+        }
+    }
+
+    private void SetScanInProgress(bool scanning)
+    {
+        var busy = scanning || _cleanupInProgress;
+        RootPathBox.IsEnabled = !busy;
+        BrowseButton.IsEnabled = !busy;
+        ScanButton.IsEnabled = !busy;
+        CleanupButton.IsEnabled = !busy && _pendingOperation is not null;
+        KeepFileComboBox.IsEnabled = !busy;
+        CancelScanButton.IsEnabled = scanning;
+    }
+
+    private async Task ScanCurrentRootAsync(CancellationToken cancellationToken)
     {
         var rootPath = RootPathBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(rootPath))
         {
-            ResultsList.ItemsSource = new[] { "Enter a valid scan root directory first." };
+            ClearCurrentResults("Enter a valid scan root directory first.");
             return;
         }
 
         if (!Directory.Exists(rootPath))
         {
-            ResultsList.ItemsSource = new[] { $"Directory not found: {rootPath}" };
+            ClearCurrentResults("Scan directory was not found.");
             return;
         }
 
         var coordinator = new DuplicateScanCoordinator();
-        var report = coordinator.CreateReport(rootPath, new ScanOptions
+        ClearCurrentResults("Scanning...");
+        var report = await Task.Run(() => coordinator.CreateReport(rootPath, new ScanOptions
         {
             AllowedExtensions = new[] { ".txt" }
-        });
+        }, cancellationToken), cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
         var summary = report.Summary;
 
         GroupCountText.Text = summary.TotalDuplicateGroups.ToString();
@@ -147,6 +232,29 @@ public partial class MainWindow : Window
         UpdateReviewSelection(duplicateGroup.FilePaths.First());
     }
 
+    private void ReportOperationFailure(string operation, Exception exception)
+    {
+        var diagnostic = $"{operation} failed ({exception.GetType().Name}).";
+        Trace.TraceError(diagnostic);
+        ClearCurrentResults(operation == "Cleanup"
+            ? $"{diagnostic} Cleanup may be incomplete. Rescan and review files before retrying."
+            : diagnostic);
+    }
+
+    private void ClearCurrentResults(string statusMessage)
+    {
+        GroupCountText.Text = "0";
+        DuplicateFileCountText.Text = "0";
+        ReclaimableText.Text = "0 bytes";
+        StatusText.Text = statusMessage;
+        ResultsList.ItemsSource = new[] { statusMessage };
+        KeepFileComboBox.ItemsSource = Array.Empty<string>();
+        _currentDuplicateGroup = null;
+        _pendingOperation = null;
+        CleanupButton.IsEnabled = false;
+        ReviewText.Text = "No review selected.";
+    }
+
     private void UpdateReviewSelection(string keepPath)
     {
         if (_currentDuplicateGroup is null)
@@ -163,8 +271,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        var decision = selection.ToDecision(DuplicateAction.Delete, removeTarget);
-        var plan = new DuplicateCleanupPlan(decision);
+        var plan = new DuplicateCleanupPlan(selection, DuplicateAction.Delete);
         if (!plan.CanExecute)
         {
             _pendingOperation = null;
@@ -174,20 +281,20 @@ public partial class MainWindow : Window
 
         var execution = new DuplicateCleanupExecutor().CreateExecution(plan);
         _pendingOperation = new DuplicateCleanupAdapter().CreateOperation(execution);
+        CleanupButton.IsEnabled = _scanCancellation is null && !_cleanupInProgress;
         ReviewText.Text = $"Keep: {selection.KeepFilePath}; Remove: {string.Join(", ", selection.RemoveFilePaths)}";
-        StatusText.Text = $"Reviewing duplicate group: keep '{selection.KeepFilePath}' and remove '{removeTarget}'.";
+        StatusText.Text = $"Reviewing duplicate group: keep '{selection.KeepFilePath}' and remove {plan.PathsToRemove.Count} duplicate file(s).";
     }
 
-    private async Task<bool> ConfirmCleanupAsync(string keepPath)
+    private async Task<bool> ConfirmCleanupAsync(DuplicateCleanupOperation operation)
     {
-        var cancelButton = new Button { Content = "Cancel", IsCancel = true };
-        var deleteButton = new Button { Content = "Delete selected", IsDefault = true };
+        var cancelButton = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
+        var deleteButton = new Button { Content = "Permanently delete selected" };
         var dialog = new Window
         {
             Title = "Confirm duplicate cleanup",
-            Width = 440,
-            Height = 190,
-            CanResize = false,
+            Width = 600,
+            Height = 360,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new StackPanel
             {
@@ -197,8 +304,17 @@ public partial class MainWindow : Window
                 {
                     new TextBlock
                     {
-                        Text = $"This will delete the selected duplicate file(s) while keeping '{keepPath}'. Do you want to continue?",
+                        Text = $"Permanently delete {operation.PathsToRemove.Count} duplicate file(s)? This cannot be undone.\nKeep: {operation.KeepPath}",
                         TextWrapping = TextWrapping.Wrap
+                    },
+                    new ScrollViewer
+                    {
+                        MaxHeight = 150,
+                        Content = new TextBlock
+                        {
+                            Text = string.Join(Environment.NewLine, operation.PathsToRemove),
+                            TextWrapping = TextWrapping.Wrap
+                        }
                     },
                     new StackPanel
                     {

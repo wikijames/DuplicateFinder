@@ -101,37 +101,25 @@ public class DuplicateDetectorTests
         }
     }
 
-    [Fact]
-    public async Task FindDuplicates_StopsWhenCancellationIsRequestedDuringHashing()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(65536L)]
+    public void ComputeHash_StopsWhenCancellationIsRequestedDuringReading(long? maximumBytes)
     {
-        var root = Path.Combine(Path.GetTempPath(), "DuplicateFinder.Tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(root);
+        using var cancellation = new CancellationTokenSource();
+        using var stream = new CancelDuringReadStream(cancellation);
 
-        var duplicateOne = Path.Combine(root, "one.bin");
-        var duplicateTwo = Path.Combine(root, "two.bin");
-        var bytes = new byte[128 * 1024 * 1024];
-        Random.Shared.NextBytes(bytes);
-        await File.WriteAllBytesAsync(duplicateOne, bytes);
-        await File.WriteAllBytesAsync(duplicateTwo, bytes);
+        Assert.ThrowsAny<OperationCanceledException>(() => DuplicateDetector.ComputeHash(stream, cancellation.Token, maximumBytes));
+        Assert.True(stream.Position > 0);
+    }
 
-        using var cts = new CancellationTokenSource();
-        var cancellationTask = Task.Run(() =>
+    private sealed class CancelDuringReadStream(CancellationTokenSource cancellation) : MemoryStream(new byte[2 * 1024 * 1024])
+    {
+        public override int Read(byte[] buffer, int offset, int count)
         {
-            Thread.Sleep(20);
-            cts.Cancel();
-        });
-
-        try
-        {
-            var detector = new DuplicateDetector();
-
-            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.Run(() =>
-                detector.FindDuplicates(root, new ScanOptions { AllowedExtensions = new[] { ".bin" } }, cts.Token), cts.Token));
-        }
-        finally
-        {
-            await cancellationTask;
-            Directory.Delete(root, recursive: true);
+            var bytesRead = base.Read(buffer, offset, count);
+            cancellation.Cancel();
+            return bytesRead;
         }
     }
 

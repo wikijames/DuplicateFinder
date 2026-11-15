@@ -67,13 +67,13 @@ public sealed class DuplicateDetector
                     group.Add(filePath);
                 }
 
-                foreach (var hashGroup in hashGroups.Values.Where(group => group.Count > 1))
+                foreach (var hashEntry in hashGroups.Where(entry => entry.Value.Count > 1))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
 
-                    var orderedPaths = hashGroup.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
+                    var orderedPaths = hashEntry.Value.OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToList();
                     var sizeBytes = new FileInfo(orderedPaths[0]).Length;
-                    duplicateGroups.Add(new DuplicateGroup(orderedPaths, sizeBytes));
+                    duplicateGroups.Add(new DuplicateGroup(orderedPaths, sizeBytes, hashEntry.Key));
                 }
             }
         }
@@ -84,6 +84,11 @@ public sealed class DuplicateDetector
     private static string ComputeHash(string filePath, CancellationToken cancellationToken, long? maxBytes = null)
     {
         using var stream = File.OpenRead(filePath);
+        return ComputeHash(stream, cancellationToken, maxBytes);
+    }
+
+    internal static string ComputeHash(Stream stream, CancellationToken cancellationToken, long? maxBytes = null)
+    {
         using var sha256 = SHA256.Create();
         var buffer = new byte[1024 * 1024];
         long bytesProcessed = 0;
@@ -115,6 +120,7 @@ public sealed class DuplicateDetector
             }
         }
 
+        cancellationToken.ThrowIfCancellationRequested();
         sha256.TransformFinalBlock(Array.Empty<byte>(), 0, 0);
         return Convert.ToHexString(sha256.Hash ?? Array.Empty<byte>());
     }
