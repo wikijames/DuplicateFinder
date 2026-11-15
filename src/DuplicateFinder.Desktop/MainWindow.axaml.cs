@@ -31,6 +31,9 @@ public partial class MainWindow : Window
         FileTypeBox.ItemsSource = FileTypePreset.CommonTypes;
         FileTypeBox.SelectedIndex = 0;
         ConfigureFolderDrop();
+        ResultsSortBox.ItemsSource = new[] { "Name (A–Z)", "Extra-copy size (largest)", "File size (largest)", "Copy count (most)" };
+        ResultsSortBox.SelectedIndex = 0;
+        GroupFilesList.SelectionChanged += (_, _) => PreviewFileButton.IsEnabled = !SetupIsBusy && GroupFilesList.SelectedItem is DuplicateFileItem;
     }
 
     private async void BrowseButton_Click(object? sender, RoutedEventArgs e)
@@ -103,6 +106,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _scanCancellation?.Cancel();
+        _previewCancellation?.Cancel();
         base.OnClosed(e);
     }
 
@@ -226,6 +230,10 @@ public partial class MainWindow : Window
         BrowseButton.IsEnabled = !busy;
         ScanButton.IsEnabled = !busy;
         ResultsList.IsEnabled = !busy;
+        ResultsSearchBox.IsEnabled = !busy;
+        ResultsSortBox.IsEnabled = !busy;
+        GroupFilesList.IsEnabled = !busy;
+        PreviewFileButton.IsEnabled = !busy && GroupFilesList.SelectedItem is DuplicateFileItem;
         CleanupActionBox.IsEnabled = !busy;
         RestoreBatchButton.IsEnabled = !busy;
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
@@ -280,8 +288,7 @@ public partial class MainWindow : Window
         _hasScanResults = true;
         _scanCompletionStatus = report.StatusMessage;
         ShowScanIssues(report);
-        ResultsList.ItemsSource = summary.Groups.Select(group => new DuplicateGroupItem(group)).ToList();
-        EmptyResultsText.IsVisible = false;
+        RefreshResultGroups();
         ResultsList.SelectedIndex = 0;
     }
 
@@ -305,6 +312,7 @@ public partial class MainWindow : Window
         ReclaimableText.Text = "0 B";
         StatusText.Text = statusMessage;
         _workspace.Clear();
+        VisibleGroupsText.Text = "0 of 0 groups";
         ResultsList.ItemsSource = Array.Empty<DuplicateGroupItem>();
         KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
         GroupFilesList.ItemsSource = Array.Empty<DuplicateFileItem>();
