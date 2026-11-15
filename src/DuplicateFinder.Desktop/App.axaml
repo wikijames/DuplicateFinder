@@ -20,6 +20,8 @@
                     <SolidColorBrush x:Key="WorkspaceDanger">#58363B</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceOnDanger">#FFE2E2</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceWarning">#F1C777</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceSelection">#25454D</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceFocus">#9CD7FF</SolidColorBrush>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="WorkspaceBackground">#F1F5F8</SolidColorBrush>
@@ -35,6 +37,8 @@
                     <SolidColorBrush x:Key="WorkspaceDanger">#812D3A</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceOnDanger">#FFFFFF</SolidColorBrush>
                     <SolidColorBrush x:Key="WorkspaceWarning">#714900</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceSelection">#D4E9EC</SolidColorBrush>
+                    <SolidColorBrush x:Key="WorkspaceFocus">#005A9C</SolidColorBrush>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
         </ResourceDictionary>
@@ -42,5 +46,60 @@
 
     <Application.Styles>
         <FluentTheme />
+        <Style Selector="Window">
+            <Setter Property="Background" Value="{DynamicResource WorkspaceBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
+        </Style>
+        <Style Selector="Border.reviewSection">
+            <Setter Property="Background" Value="{DynamicResource WorkspaceInset}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+        </Style>
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource WorkspaceAccent}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceOnAccent}" />
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource WorkspaceDanger}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceOnDanger}" />
+        </Style>
+        <Style Selector="TextBlock.muted">
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceMuted}" />
+        </Style>
+        <Style Selector="TextBlock.section">
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Padding" Value="14,8" />
+            <Setter Property="MinHeight" Value="36" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="Button:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceFocus}" />
+        </Style>
+        <Style Selector="TextBox:focus-within">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceFocus}" />
+        </Style>
+        <Style Selector="ComboBox:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceFocus}" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Padding" Value="10,8" />
+            <Setter Property="Margin" Value="4,2" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="BorderThickness" Value="2" />
+        </Style>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="{DynamicResource WorkspaceSelection}" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
+        </Style>
+        <Style Selector="ListBoxItem:focus-visible">
+            <Setter Property="BorderBrush" Value="{DynamicResource WorkspaceFocus}" />
+        </Style>
     </Application.Styles>
 </Application>

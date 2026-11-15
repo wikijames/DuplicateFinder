@@ -36,7 +36,7 @@ public partial class MainWindow : Window
         ResultsSortBox.SelectedIndex = 0;
         AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
         AppearanceBox.SelectedIndex = 0;
-        GroupFilesList.SelectionChanged += (_, _) => PreviewFileButton.IsEnabled = !SetupIsBusy && GroupFilesList.SelectedItem is DuplicateFileItem;
+        GroupFilesList.SelectionChanged += (_, _) => PreviewFileButton.IsEnabled = !SetupIsBusy && GroupFilesList.SelectedItem is FileReviewRow;
         KeyDown += (_, e) =>
         {
             if (e.Key == Avalonia.Input.Key.Escape && _scanCancellation is not null)
@@ -175,6 +175,7 @@ public partial class MainWindow : Window
         {
             _cleanupInProgress = false;
             SetScanInProgress(false);
+            if (CleanupButton.IsEnabled) CleanupButton.Focus(); else ScanButton.Focus();
         }
     }
 
@@ -256,13 +257,15 @@ public partial class MainWindow : Window
         ResultsSearchBox.IsEnabled = !busy;
         ResultsSortBox.IsEnabled = !busy;
         GroupFilesList.IsEnabled = !busy;
-        PreviewFileButton.IsEnabled = !busy && GroupFilesList.SelectedItem is DuplicateFileItem;
+        PreviewFileButton.IsEnabled = !busy && GroupFilesList.SelectedItem is FileReviewRow;
         CleanupActionBox.IsEnabled = !busy;
         RestoreBatchButton.IsEnabled = !busy;
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy && _workspace.Selection is not null;
         CancelScanButton.IsEnabled = scanning;
-        ScanProgressIndicator.IsVisible = busy;
+        ScanProgressIndicator.IsVisible = scanning || _cleanupInProgress;
+        ScanWorkText.IsVisible = scanning;
+        if (!scanning) ScanWorkText.Text = string.Empty;
     }
 
     private async Task ScanCurrentRootAsync(CancellationToken cancellationToken)
@@ -296,7 +299,15 @@ public partial class MainWindow : Window
         timer.Tick += (_, _) =>
         {
             if (progress.TakeLatest() is not { } snapshot) return;
-            StatusText.Text = $"{snapshot.Stage}: {snapshot.DiscoveredFiles} candidates · {snapshot.SampledFiles} sampled · " +
+            StatusText.Text = snapshot.Stage switch
+            {
+                ScanStage.Discovering => "Finding files in the selected folders...",
+                ScanStage.Sampling => "Reading file samples...",
+                ScanStage.Hashing => "Hashing candidate files...",
+                ScanStage.Verifying => "Verifying matching files byte by byte...",
+                _ => "Finishing scan..."
+            };
+            ScanWorkText.Text = $"{snapshot.DiscoveredFiles} candidates · {snapshot.SampledFiles} sampled · " +
                 $"{snapshot.HashedFiles} hashed · {snapshot.VerifiedPairs} pairs checked · {DisplayFileSize.Format(snapshot.BytesRead)} read";
         };
         DuplicateScanReport report;
@@ -314,6 +325,7 @@ public partial class MainWindow : Window
         GroupCountText.Text = summary.TotalDuplicateGroups.ToString();
         DuplicateFileCountText.Text = summary.TotalDuplicateFiles.ToString();
         ReclaimableText.Text = DisplayFileSize.Format(summary.TotalReclaimableBytes);
+        AutomationProperties.SetLiveSetting(StatusText, AutomationLiveSetting.Polite);
         StatusText.Text = report.StatusMessage;
 
         if (!summary.HasDuplicates)
@@ -353,16 +365,18 @@ public partial class MainWindow : Window
         _scanCompletionStatus = null;
         _hasScanResults = false;
         ScanWarningText.IsVisible = false;
+        ScanWarningPanel.IsVisible = false;
         ScanWarningText.Text = string.Empty;
         GroupCountText.Text = "0";
         DuplicateFileCountText.Text = "0";
         ReclaimableText.Text = "0 B";
+        AutomationProperties.SetLiveSetting(StatusText, statusMessage == "Scanning..." ? AutomationLiveSetting.Off : AutomationLiveSetting.Polite);
         StatusText.Text = statusMessage;
         _workspace.Clear();
         VisibleGroupsText.Text = "0 of 0 groups";
         ResultsList.ItemsSource = Array.Empty<DuplicateGroupItem>();
         KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
-        GroupFilesList.ItemsSource = Array.Empty<DuplicateFileItem>();
+        GroupFilesList.ItemsSource = Array.Empty<FileReviewRow>();
         SelectedGroupTitle.Text = "Choose a duplicate group";
         EmptyResultsText.Text = statusMessage;
         EmptyResultsText.IsVisible = true;
@@ -376,6 +390,7 @@ public partial class MainWindow : Window
         var showNotice = !report.Summary.IsComplete || report.Summary.Issues.ExcludedHardLinkPathCount > 0;
         ScanWarningText.Text = showNotice ? report.StatusMessage : string.Empty;
         ScanWarningText.IsVisible = showNotice;
+        ScanWarningPanel.IsVisible = showNotice;
     }
 
     private void RefreshReview()
@@ -383,7 +398,7 @@ public partial class MainWindow : Window
         var selection = _workspace.Selection;
         if (selection is null)
         {
-            GroupFilesList.ItemsSource = Array.Empty<DuplicateFileItem>();
+            GroupFilesList.ItemsSource = Array.Empty<FileReviewRow>();
             SelectedGroupTitle.Text = "Choose a duplicate group";
             ReviewText.Text = "No review selected.";
             CleanupButton.IsEnabled = false;
@@ -393,7 +408,7 @@ public partial class MainWindow : Window
 
         var busy = _scanCancellation is not null || _cleanupInProgress;
         SelectedGroupTitle.Text = Path.GetFileName(selection.Group.FilePaths[0]);
-        GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new DuplicateFileItem(path, selection.Group.SizeBytes,
+        GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new FileReviewRow(path, selection.Group.SizeBytes,
             string.Equals(path, selection.KeepFilePath, StringComparison.OrdinalIgnoreCase))).ToList();
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy;
@@ -408,48 +423,52 @@ public partial class MainWindow : Window
         var quarantine = operation.Action == DuplicateAction.Quarantine;
         var cancelButton = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
         var confirmButton = new Button { Content = quarantine ? "Move to quarantine" : "Permanently delete selected" };
+        confirmButton.Classes.Add(quarantine ? "primary" : "danger");
+        AutomationProperties.SetAutomationId(cancelButton, "CancelCleanupButton");
+        AutomationProperties.SetAutomationId(confirmButton, "ConfirmCleanupButton");
         var destinationBox = new TextBox { Text = Path.GetDirectoryName(operation.KeepPath) };
         AutomationProperties.SetAutomationId(destinationBox, "QuarantineDestinationBox");
         AutomationProperties.SetName(destinationBox, "Quarantine destination folder");
         var validationText = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        var header = new StackPanel { Spacing = 10 };
+        AutomationProperties.SetName(validationText, "Quarantine destination validation");
+        AutomationProperties.SetLiveSetting(validationText, AutomationLiveSetting.Polite);
+        var header = new StackPanel { Spacing = 14 };
+        header.Children.Add(new TextBlock
+        {
+            Text = quarantine ? "Review quarantine" : "Review permanent deletion", FontSize = 20, FontWeight = FontWeight.SemiBold
+        });
         header.Children.Add(new TextBlock
         {
             Text = quarantine
-                ? $"Move {operation.PathsToRemove.Count} file(s) into recoverable quarantine? Disk space will not be freed.\nKeep: {operation.KeepPath}"
-                : $"Permanently delete {operation.PathsToRemove.Count} duplicate file(s)? This cannot be undone.\nKeep: {operation.KeepPath}",
+                ? $"Move {operation.PathsToRemove.Count} file(s) into recoverable quarantine. Disk space will not be freed. Other groups are unaffected."
+                : $"Permanently delete {operation.PathsToRemove.Count} duplicate file(s). This cannot be undone. Other groups are unaffected.",
             TextWrapping = TextWrapping.Wrap
         });
+        var keepPath = new TextBox { Text = operation.KeepPath, IsReadOnly = true, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(keepPath, "Protected file; will be kept");
+        header.Children.Add(ReviewSection("Keep this file", keepPath));
         if (quarantine)
         {
-            header.Children.Add(new TextBlock { Text = "Destination folder (same drive). Keep the manifest; restore requires this Windows user profile.", TextWrapping = TextWrapping.Wrap });
-            header.Children.Add(CreateFolderEntry(destinationBox, validationText, "Select a quarantine destination on the same drive"));
-            header.Children.Add(validationText);
+            header.Children.Add(ReviewSection("Quarantine destination", new StackPanel
+            {
+                Spacing = 8,
+                Children =
+                {
+                    new TextBlock { Text = "Use the same drive. Keep the manifest; restore requires this Windows user profile.", TextWrapping = TextWrapping.Wrap },
+                    CreateFolderEntry(destinationBox, validationText, "Select a quarantine destination on the same drive"), validationText
+                }
+            }));
         }
 
-        var targets = new ScrollViewer
-        {
-            Content = new TextBlock { Text = string.Join(Environment.NewLine, operation.PathsToRemove), TextWrapping = TextWrapping.Wrap }
-        };
+        var targets = new SelectableTextBlock { Text = string.Join(Environment.NewLine + Environment.NewLine, operation.PathsToRemove), TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(targets, "All removal targets for this operation");
+        header.Children.Add(ReviewSection($"Removal candidates ({operation.PathsToRemove.Count})", targets));
         var buttons = new StackPanel
         {
             Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right,
             Spacing = 8, Children = { cancelButton, confirmButton }
         };
-        var content = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 16 };
-        Grid.SetRow(targets, 1);
-        Grid.SetRow(buttons, 2);
-        content.Children.Add(header);
-        content.Children.Add(targets);
-        content.Children.Add(buttons);
-        var dialog = new Window
-        {
-            Title = "Confirm duplicate cleanup",
-            Width = 640,
-            Height = 480,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = content
-        };
+        var dialog = CreateReviewDialog("Confirm duplicate cleanup", header, buttons, cancelButton);
 
         cancelButton.Click += (_, _) => dialog.Close(false);
         confirmButton.Click += (_, _) =>
@@ -531,6 +550,7 @@ public partial class MainWindow : Window
         {
             _cleanupInProgress = false;
             SetScanInProgress(false);
+            RestoreBatchButton.Focus();
         }
     }
 
@@ -592,18 +612,14 @@ public partial class MainWindow : Window
     {
         var cancel = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
         var restore = new Button { Content = "Restore files" };
-        var targets = new ScrollViewer
-        {
-            Content = new TextBlock { Text = string.Join(Environment.NewLine, batch.Entries.Select(entry => entry.OriginalPath)), TextWrapping = TextWrapping.Wrap }
-        };
+        restore.Classes.Add("primary");
+        var targets = new SelectableTextBlock { Text = string.Join(Environment.NewLine + Environment.NewLine, batch.Entries.Select(entry => entry.OriginalPath)), TextWrapping = TextWrapping.Wrap };
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, restore } };
-        var content = new Grid { Margin = new Thickness(20), RowDefinitions = new RowDefinitions("Auto,*,Auto"), RowSpacing = 16 };
+        var content = new StackPanel { Spacing = 14 };
+        content.Children.Add(new TextBlock { Text = "Review batch restore", FontSize = 20, FontWeight = FontWeight.SemiBold });
         content.Children.Add(new TextBlock { Text = $"Review {batch.Entries.Count} recovery entry/entries. Files still in quarantine will return to these original paths. Existing files are never overwritten; matching files already restored are left alone.", TextWrapping = TextWrapping.Wrap });
-        Grid.SetRow(targets, 1);
-        Grid.SetRow(buttons, 2);
-        content.Children.Add(targets);
-        content.Children.Add(buttons);
-        var dialog = new Window { Title = "Confirm batch restore", Width = 640, Height = 420, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+        content.Children.Add(ReviewSection("Original file locations", targets));
+        var dialog = CreateReviewDialog("Confirm batch restore", content, buttons, cancel);
         cancel.Click += (_, _) => dialog.Close(false);
         restore.Click += (_, _) => dialog.Close(true);
         return await dialog.ShowDialog<bool>(this);

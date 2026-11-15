@@ -26,5 +26,6 @@ Scans now byte-verify hash candidates and report encountered file/folder failure
 2. Review results search/sorting and bounded text previews; see [behavior and validation](results-search-and-previews.md). Manually validate native Explorer folder drops before release.
 3. Review measured scan progress, keyboard controls and System/Light/Dark appearance; see [validation and remaining accessibility gates](scan-progress-and-accessibility.md). The current suite has 202 passing tests. Measure synthetic benchmarks before tuning performance. Broader image/document preview support is separate work.
 4. Review the [synthetic benchmark baseline](synthetic-scan-benchmarks.md) and [opt-in persistent diagnostics](opt-in-diagnostics.md); 215 tests pass. Continue physical-storage measurements, storage-failure testing, dependency/license review, packaging and security review without treating a feature branch as a full release certification.
+5. Review the [Windows UI refinement](windows-ui-refinement.md), validated with an interactive synthetic smoke test. Complete the documented Narrator, high-contrast, display-scaling and rendered-state checks before calling accessibility validation complete.
 
 Image similarity remains blocked on the dependency decision described in [the feasibility note](image-media-similarity-feasibility.md).

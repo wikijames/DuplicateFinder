@@ -74,11 +74,17 @@ public partial class MainWindow
                     new TextBlock { Text = "Off by default, for this app session only. Records include UTC times, fixed operation names, counts and broad error categories. No paths, filenames, file content, exception messages or stack traces are recorded. Nothing is uploaded.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Choose a new local file. Recording stops at the size or queue limit, or after a write failure. Existing files are never overwritten. Stop closes the file after queued records are written.", TextWrapping = TextWrapping.Wrap },
                     new TextBlock { Text = "Retention: saved files remain until you delete them. The app never rotates or deletes logs. Choose local storage and keep only files you need; review them before sharing.", TextWrapping = TextWrapping.Wrap },
-                    status, new TextBlock { Text = "Maximum size for the next recording" }, limit,
-                    new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { start, stop } }, close
+                    status, new TextBlock { Text = "Maximum size for the next recording" }, limit
                 }
             };
-            var dialog = new Window { Title = "Local diagnostics", Width = 660, Height = 520, Content = content, WindowStartupLocation = WindowStartupLocation.CenterOwner };
+            content.Margin = new Thickness(0);
+            close.HorizontalAlignment = HorizontalAlignment.Right;
+            var actions = new StackPanel
+            {
+                Spacing = 8,
+                Children = { new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { start, stop } }, close }
+            };
+            var dialog = CreateReviewDialog("Local diagnostics", content, actions, close);
             var changingRecording = false;
             dialog.Closing += (_, args) => { if (changingRecording) args.Cancel = true; };
             start.Click += async (_, _) =>
@@ -128,6 +134,6 @@ public partial class MainWindow
             close.Click += (_, _) => dialog.Close();
             await dialog.ShowDialog(this);
         }
-        finally { _setupDialogOpen = false; SetScanInProgress(false); }
+        finally { _setupDialogOpen = false; SetScanInProgress(false); DiagnosticsButton.Focus(); }
     }
 }
