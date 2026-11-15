@@ -12,10 +12,15 @@
                 <TextBlock Classes="muted" Text="Find matching files. Review what stays." />
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-                <Button Name="DiagnosticsButton" Content="Diagnostics: off" Click="DiagnosticsButton_Click" AutomationProperties.Name="Local diagnostic recording" />
+                <Button Name="DiagnosticsButton" Click="DiagnosticsButton_Click" AutomationProperties.Name="Local diagnostics; Diagnostics Off">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Ellipse Name="DiagnosticsIndicator" Classes="diagnosticsIndicator" />
+                        <TextBlock Name="DiagnosticsLabel" Text="Diagnostics Off" VerticalAlignment="Center" />
+                    </StackPanel>
+                </Button>
                 <ComboBox Name="AppearanceBox" Width="130" AutomationProperties.Name="Application appearance" SelectionChanged="AppearanceBox_SelectionChanged" />
             <Border Background="{DynamicResource WorkspaceBadge}" CornerRadius="6" Padding="12,7" VerticalAlignment="Center">
-                <TextBlock Text="EXACT FILE MATCHES" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="11" FontWeight="SemiBold" />
+                <TextBlock Text="EXACT FILE MATCHES" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" FontWeight="SemiBold" />
             </Border>
             </StackPanel>
         </Grid>
@@ -44,7 +49,7 @@
                              AutomationProperties.Name="Included file extensions" TextChanged="ScanSetup_Changed" />
                     <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Classes="muted"
                                Text="Choose Custom extensions to edit the list. Every category uses exact content matching."
-                               TextWrapping="Wrap" FontSize="12" />
+                               TextWrapping="Wrap" FontSize="13" />
                 </Grid>
             </Grid>
         </Border>
@@ -58,7 +63,7 @@
             </StackPanel>
             <Border Grid.Row="1" Grid.ColumnSpan="2" Name="ScanWarningPanel" IsVisible="False" Classes="reviewSection" Padding="10,6" BorderBrush="{DynamicResource WorkspaceWarning}">
                 <TextBlock Name="ScanWarningText" IsVisible="False" Foreground="{DynamicResource WorkspaceWarning}"
-                           FontSize="12" TextWrapping="Wrap" />
+                           FontSize="13" TextWrapping="Wrap" />
             </Border>
         </Grid>
 
@@ -74,7 +79,7 @@
                     <StackPanel Grid.Row="1" Margin="12,0,12,8" Spacing="6">
                         <TextBox Name="ResultsSearchBox" PlaceholderText="Search names or paths" AutomationProperties.Name="Search duplicate groups" ToolTip.Tip="Search filenames and paths (Ctrl+F)" TextChanged="ResultsSearch_Changed" />
                         <ComboBox Name="ResultsSortBox" HorizontalAlignment="Stretch" AutomationProperties.Name="Sort duplicate groups" SelectionChanged="ResultsSort_Changed" />
-                        <TextBlock Name="VisibleGroupsText" Classes="muted" FontSize="11" Text="0 of 0 groups" />
+                        <TextBlock Name="VisibleGroupsText" Classes="muted" FontSize="12" Text="0 of 0 groups" />
                     </StackPanel>
                     <ListBox Grid.Row="2" Name="ResultsList" Background="Transparent" SelectionChanged="ResultsList_SelectionChanged"
                              AutomationProperties.Name="Duplicate groups">
@@ -82,8 +87,8 @@
                             <DataTemplate x:DataType="local:DuplicateGroupItem">
                                 <StackPanel Spacing="5">
                                     <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
-                                    <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" />
-                                    <TextBlock Text="{Binding Reclaimable}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" />
+                                    <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="13" />
+                                    <TextBlock Text="{Binding Reclaimable}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="13" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
@@ -117,19 +122,19 @@
                                 <StackPanel Spacing="6" AutomationProperties.Name="{Binding AccessibleName}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
                                         <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
-                                        <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="12" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="13" />
                                     </Grid>
-                                    <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />
+                                    <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="13" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />
                                     <Border IsVisible="{Binding IsKeep}" Background="{DynamicResource WorkspaceBadge}" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left">
-                                        <TextBlock Text="KEEP · Protected in this group" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" FontWeight="SemiBold" />
+                                        <TextBlock Text="KEEP · Protected in this group" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="13" FontWeight="SemiBold" />
                                     </Border>
-                                    <TextBlock IsVisible="{Binding IsRemovalCandidate}" Text="Removal candidate · Requires confirmation" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                                    <TextBlock IsVisible="{Binding IsRemovalCandidate}" Text="Removal candidate · Requires confirmation" Classes="muted" FontSize="13" TextWrapping="Wrap" />
                                 </StackPanel>
                             </DataTemplate>
                         </ListBox.ItemTemplate>
                     </ListBox>
                     <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                        <TextBlock Name="ReviewText" Text="No review selected." Classes="muted" FontSize="12" TextWrapping="Wrap" VerticalAlignment="Center" />
+                        <TextBlock Name="ReviewText" Text="No review selected." Classes="muted" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
                         <Button Grid.Column="1" Name="PreviewFileButton" Content="Preview file" AutomationProperties.Name="Preview selected file" Padding="10,6" Click="PreviewFileButton_Click" IsEnabled="False" />
                     </Grid>
                 </Grid>
@@ -147,10 +152,10 @@
                 <Button Grid.Row="1" Grid.Column="1" Name="RestoreBatchButton" Content="Restore batch" Click="RestoreBatchButton_Click" />
                 <Button Grid.Row="1" Grid.Column="2" Name="CleanupButton" Content="Review removal" Click="CleanupButton_Click" IsEnabled="False"
                         Background="{DynamicResource WorkspaceDanger}" Foreground="{DynamicResource WorkspaceOnDanger}" />
-                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Name="RecoveryText" IsVisible="False" Classes="muted" FontSize="11"
+                <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Name="RecoveryText" IsVisible="False" Classes="muted" FontSize="12"
                            TextTrimming="CharacterEllipsis" />
                 <StackPanel Grid.Row="3" Grid.ColumnSpan="3" Spacing="6">
-                    <TextBlock Name="ScanWorkText" IsVisible="False" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                    <TextBlock Name="ScanWorkText" IsVisible="False" Classes="muted" FontSize="13" TextWrapping="Wrap" />
                     <ProgressBar Name="ScanProgressIndicator" Height="3" IsIndeterminate="True" IsVisible="False" AutomationProperties.Name="Operation in progress; total work unknown" />
                 </StackPanel>
             </Grid>
