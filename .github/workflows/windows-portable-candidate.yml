@@ -1,0 +1,42 @@
+name: Windows portable test candidate
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore locked Release dependencies
+        run: dotnet restore DuplicateFinder.slnx -p:Configuration=Release --locked-mode
+      - name: Build and test
+        shell: pwsh
+        run: |
+          dotnet build DuplicateFinder.slnx -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          dotnet test DuplicateFinder.slnx -c Release --no-build --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Create audited portable test candidate
+        id: portable
+        shell: pwsh
+        run: ./tools/Publish-WindowsPortable.ps1 -DotNetPath dotnet
+      - name: Retain candidate and checksum for review
+        uses: actions/upload-artifact@v7
+        with:
+          name: windows-x64-test-candidate
+          path: |
+            ${{ steps.portable.outputs.zip }}
+            ${{ steps.portable.outputs.checksum }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0

@@ -55,15 +55,18 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 - [ ] Benchmark reproducible synthetic data on SSD/HDD: many small files, large files, duplicate-heavy and mostly unique scans.
 - [ ] Record throughput, allocations, peak memory and cancellation latency before tuning concurrency.
 - [x] Add explicit opt-in, session-only persistent diagnostics with a fixed privacy schema, 16/64 KiB file caps, a bounded queue and user-managed retention. See [behavior and validation](opt-in-diagnostics.md).
-- [ ] Review all direct/transitive package vulnerabilities, licensing and deployment footprint.
+- [x] Audit direct/transitive NuGet vulnerabilities and inventory license metadata/portable footprint. See [findings and scope](dependency-review.md).
+- [ ] Close application-license choice, native/font attribution and bundled-runtime security review before public distribution.
 - [ ] Expand automated and interactive tests for the supported Windows and file-system matrix.
 
 ## Packaging and release gate
 
-- [ ] Choose portable distribution, installer, or both; define minimum supported Windows version and architecture.
+- [x] Prepare a repeatable self-contained Windows x64 portable test candidate with notices, inventories, checksums and extraction checks. See [build and validation](windows-release-preparation.md). Installer support is deferred.
+- [ ] Certify the minimum supported Windows build and final architecture/support matrix; Windows 11 x64 is the initial candidate target.
 - [ ] Test a Release publish on a clean Windows environment, including a machine without the SDK.
 - [ ] Validate dependencies, install/update/uninstall behavior, application identity and any signing requirements.
-- [ ] Document safe use, known limitations, cleanup/restore behavior, diagnostics and recovery.
+- [x] Document portable-candidate use, replacement/removal, cleanup/restore, diagnostics and known limitations in the [user guide](windows-portable-guide.md).
+- [ ] Finalize public-release support, signing and acceptance documentation after the remaining gates pass.
 - [ ] Verify hosted CI and review branch-protection settings.
 - [ ] Complete the release safety review and acceptance checklist before tagging a Windows v1 release.
 
