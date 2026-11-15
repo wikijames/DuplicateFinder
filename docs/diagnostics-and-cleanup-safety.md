@@ -1,5 +1,7 @@
 # Diagnostics and cleanup safety
 
+This records the diagnostics branch's original scope. The subsequent [guarded-quarantine feature](guarded-quarantine.md) adds default recoverable moves and explicit batch restore while retaining the checks below for permanent deletion.
+
 ## Behavior
 
 Desktop scans run in the background. Cancel propagates to discovery and hashing; results from a cancelled scan are discarded. Scan, folder-selection and cleanup failures clear stale review state and report an operation name and exception type. Trace output excludes exception messages, stack traces and scanned paths. This branch does not introduce persistent diagnostic logs.

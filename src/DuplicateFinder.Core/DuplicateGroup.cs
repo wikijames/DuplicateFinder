@@ -27,7 +27,8 @@ public enum DuplicateAction
     Keep,
     Delete,
     MoveToRecycleBin,
-    Ignore
+    Ignore,
+    Quarantine
 }
 
 public sealed class DuplicateReviewDecision
@@ -66,9 +67,9 @@ public sealed class DuplicateCleanupPlan
     public DuplicateCleanupPlan(DuplicateReviewSelection selection, DuplicateAction action)
     {
         ArgumentNullException.ThrowIfNull(selection);
-        if (action is not DuplicateAction.Delete and not DuplicateAction.MoveToRecycleBin)
+        if (action is not DuplicateAction.Delete and not DuplicateAction.MoveToRecycleBin and not DuplicateAction.Quarantine)
         {
-            throw new ArgumentOutOfRangeException(nameof(action), "A cleanup plan requires a delete or recycle-bin action.");
+            throw new ArgumentOutOfRangeException(nameof(action), "A cleanup plan requires a delete, recycle-bin or quarantine action.");
         }
 
         Action = action;
@@ -115,7 +116,7 @@ public sealed class DuplicateCleanupPlan
             .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
             .ToArray();
 
-        if (decision.Action == DuplicateAction.Delete || decision.Action == DuplicateAction.MoveToRecycleBin)
+        if (decision.Action is DuplicateAction.Delete or DuplicateAction.MoveToRecycleBin or DuplicateAction.Quarantine)
         {
             var keepCandidate = decision.Group.FilePaths
                 .FirstOrDefault(path => !string.Equals(path, selectedPath, StringComparison.OrdinalIgnoreCase));
@@ -281,6 +282,7 @@ public sealed class WindowsCleanupStrategy
         {
             DuplicateAction.Delete => "Delete",
             DuplicateAction.MoveToRecycleBin => "RecycleBin",
+            DuplicateAction.Quarantine => "Quarantine",
             _ => "Review"
         };
 

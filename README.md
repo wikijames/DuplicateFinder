@@ -39,7 +39,7 @@ This project implements general-purpose file management functionality using orig
 
 ## Getting started
 
-Desktop scanning supports cancellation. Cleanup requires explicit confirmation and rechecks the reviewed contents before guarded Windows permanent deletion. See [diagnostics and cleanup safety](docs/diagnostics-and-cleanup-safety.md) for validation and current limits, including unsupported recycle-bin execution and groups above 128 removal targets.
+Desktop scanning supports cancellation. Cleanup defaults to guarded same-drive quarantine with explicit batch restore; permanent deletion is a separate choice. Every operation requires confirmation and content validation. See [guarded quarantine and restore](docs/guarded-quarantine.md) and [cleanup safety](docs/diagnostics-and-cleanup-safety.md) for limits, including the original Windows profile required for recovery, unsupported recycle-bin execution, and groups above 128 removal targets.
 
 ```powershell
 dotnet build

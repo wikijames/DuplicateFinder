@@ -10,7 +10,7 @@ public sealed class DuplicateGroupItem(DuplicateGroup group)
     public DuplicateGroup Group { get; } = group;
     public string Title => Path.GetFileName(Group.FilePaths[0]);
     public string Summary => $"{Group.FilePaths.Count} files · {DisplayFileSize.Format(Group.SizeBytes)} each";
-    public string Reclaimable => $"{DisplayFileSize.Format(Group.ReclaimableBytes)} reclaimable";
+    public string Reclaimable => $"{DisplayFileSize.Format(Group.ReclaimableBytes)} in extra copies";
     public override string ToString() => $"{Title} — {Summary}";
 }
 

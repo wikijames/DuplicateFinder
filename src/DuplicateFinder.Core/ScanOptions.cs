@@ -12,7 +12,7 @@ public sealed class ScanOptions
 
     public IEnumerable<string>? AllowedExtensions { get; set; }
 
-    public IEnumerable<string>? ExcludedDirectoryNames { get; set; }
+    public IEnumerable<string>? ExcludedDirectoryNames { get; set; } = new[] { ".DuplicateFinder-Quarantine" };
 
     public IEnumerable<string>? ExcludedPathSegments { get; set; } = OperatingSystem.IsWindows()
         ? new[] { "$RECYCLE.BIN", "System Volume Information", "Windows", "Program Files", "Program Files (x86)", "Temp", "tmp", "cache", "Cache", "AppData" }

@@ -128,4 +128,28 @@ public sealed class DuplicateReviewWorkspaceTests
         workspace.Load([_documents, _images]);
         return workspace;
     }
+
+    [Fact]
+    public void Cleanup_DefaultsToRecoverableQuarantine()
+    {
+        var workspace = CreateWorkspace();
+        workspace.SelectGroup(_documents);
+
+        Assert.Equal(DuplicateAction.Quarantine, workspace.CleanupOperation!.Action);
+    }
+
+    [Fact]
+    public void ChangingAction_PreservesTheReviewedKeepFileAndGroupScope()
+    {
+        var workspace = CreateWorkspace();
+        workspace.SelectGroup(_documents);
+        workspace.SelectKeepFile("working.txt");
+        workspace.SetCleanupAction(DuplicateAction.Delete);
+
+        Assert.Equal(DuplicateAction.Delete, workspace.CleanupOperation!.Action);
+        Assert.Equal("working.txt", workspace.CleanupOperation.KeepPath);
+        Assert.Equal(["draft.txt", "saved.txt"], workspace.CleanupOperation.PathsToRemove);
+        workspace.SetCleanupAction(DuplicateAction.Quarantine);
+        Assert.Equal(DuplicateAction.Quarantine, workspace.CleanupOperation!.Action);
+    }
 }

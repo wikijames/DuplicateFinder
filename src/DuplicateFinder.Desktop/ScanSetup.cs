@@ -6,6 +6,16 @@ namespace DuplicateFinder.Desktop;
 
 public static class ScanSetup
 {
+    public static ScanOptions CreateOptions(FileTypePreset preset, string? customExtensions)
+    {
+        ArgumentNullException.ThrowIfNull(preset);
+        if (preset.IsCustom && string.IsNullOrWhiteSpace(customExtensions))
+        {
+            throw new ArgumentException("Enter custom extensions or choose All files.", nameof(customExtensions));
+        }
+        return CreateOptions(preset.IsCustom ? customExtensions : preset.Extensions);
+    }
+
     public static ScanOptions CreateOptions(string? extensionText)
     {
         var extensions = (extensionText ?? string.Empty)
