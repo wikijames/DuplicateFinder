@@ -8,23 +8,23 @@ Reviewed against the local source on 15 November 2026. This is an evidence-based
 | --- | --- | --- |
 | Foundation | Solution, core and desktop projects, xUnit tests, repository rules; Windows CI workflow now prepared locally | First hosted CI run and remote branch protection are unverified |
 | File discovery | Recursive enumeration, filters, cancellation checks, hidden-entry handling and Windows reparse-point exclusion | SSD/HDD benchmarks, file-system race handling and portable symlink coverage need review |
-| Exact duplicates | Size grouping, sampled and full SHA-256 hashing, grouped results and tests; cleanup performs byte comparison against scan fingerprints | Scan-time byte comparison, throughput and memory benchmarks remain |
+| Exact duplicates | Size grouping, sampled/full SHA-256 hashing, byte-verified scan groups, per-scan issue counts, and guarded cleanup revalidation | Hard-link-aware accounting, throughput and memory benchmarks remain |
 | Desktop workflow | Background scans/cancellation, extension filters, split-view review, scoped confirmation, default guarded quarantine with batch restore, and explicit Windows permanent deletion | Recycle-bin execution is disabled; safe content previews and broader release validation remain |
 | Image/media similarity | Evaluation and exact/similar result boundary documented | Decoder/hash dependency decision blocks implementation; video analysis remains separate |
 | Release readiness | Sanitized scan/folder/cleanup failure reporting; diagnostics and cleanup-safety branch validated locally | Persistent diagnostics, profiling, release documentation, wider security review and quality gates remain |
 | Android feasibility | Portable core is the architectural target | Storage-access review, boundary validation and prototype criteria remain |
 
-The earlier estimate of 56% overall gave equal weight to roadmap items and relied on the README for desktop completion. It should not be treated as verified completion: scan-time byte verification and broad release validation still have gaps.
+The earlier estimate of 56% overall gave equal weight to roadmap items and relied on the README for desktop completion. It should not be treated as verified completion: broader file-system coverage, performance measurements and release validation still have gaps.
 
 ## Next small steps
 
 Local UI checks confirmed cancellation during a synthetic scan, restoration of controls afterward, changing the keep selection in a three-copy group, confirmation and Cancel, and stale-result rejection. The desktop creates its plan directly from the review selection, preserving the chosen keep file and including all displayed removal targets.
 
-Cleanup uses scan-time size/SHA-256 fingerprints and bounded-memory byte comparison before removal. Missing, differing, linked or locked files stop the operation. Windows file and ancestor-directory handles are retained through handle-based deletion; stale review state is cleared afterward. The 64 tests include actual removal of generated temporary fixtures, with no personal files used. See [diagnostics and cleanup safety](diagnostics-and-cleanup-safety.md) for the supported path/action limits and remaining release boundaries.
+Scans now byte-verify hash candidates and report encountered file/folder failures without discarding healthy groups or claiming complete success. The UI retains a persistent incomplete-scan warning. Cleanup still revalidates scan fingerprints and bytes through protected Windows handles. The 129-test suite uses generated fixtures; no personal files are used. See [verified scans](verified-scans.md) and [guarded quarantine](guarded-quarantine.md) for behavior and remaining release boundaries.
 
-1. Review and publish the guarded-quarantine branch; verify hosted CI against `development`. See the [branch summary](guarded-quarantine.md).
-2. Add scan-time byte verification and explicit scan-completeness/error reporting.
-3. Add reproducible synthetic benchmarks before tuning performance, then complete remaining UI and accessibility work.
-4. Continue release diagnostics, storage-failure testing and security review without treating a feature branch as a full release certification.
+1. Review and publish the verified-scans branch; verify hosted CI against `development`.
+2. Define hard-link accounting and expand long-path/drive coverage.
+3. Complete multi-folder controls, scan progress, previews and accessibility; measure synthetic benchmarks before tuning performance.
+4. Continue release diagnostics, storage-failure testing, packaging and security review without treating a feature branch as a full release certification.
 
 Image similarity remains blocked on the dependency decision described in [the feasibility note](image-media-similarity-feasibility.md).
