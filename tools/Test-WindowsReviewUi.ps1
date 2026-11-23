@@ -1,3 +1,5 @@
+param([string]$ExecutablePath)
+# Use only an executable built from reviewed DuplicateFinder source. Never pass an untrusted app.
 # Run after a Windows x64 Release build. Uses only a new app process and generated fixtures.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
@@ -10,7 +12,9 @@ public static class SyntheticReviewLinks {
     public static extern bool Create(string alias, string original, IntPtr security);
 }
 '@
-$executable = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../src/DuplicateFinder.Desktop/bin/Release/net10.0/DuplicateFinder.Desktop.exe'))
+$executable = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
+    [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../src/DuplicateFinder.Desktop/bin/Release/net10.0/DuplicateFinder.Desktop.exe'))
+} else { [IO.Path]::GetFullPath($ExecutablePath) }
 if (!(Test-Path -LiteralPath $executable)) { throw 'Build the Windows Release desktop app before running this smoke test.' }
 $fixture = Join-Path ([IO.Path]::GetTempPath()) ('DuplicateFinder-ReviewSmoke-' + [guid]::NewGuid().ToString('N'))
 $small = Join-Path $fixture 'small'
@@ -71,6 +75,13 @@ try {
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $testProcess.Id),
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'DuplicateFinder'))
     Wait-Until { $script:reviewWindow = $desktop.FindFirst([Windows.Automation.TreeScope]::Children, $condition); $null -ne $script:reviewWindow } 'Test app did not open.'
+    $bundledRuntime = Join-Path ([IO.Path]::GetDirectoryName($executable)) 'coreclr.dll'
+    if (Test-Path -LiteralPath $bundledRuntime) {
+        $runtime = $testProcess.Modules | Where-Object { $_.ModuleName -eq 'coreclr.dll' } | Select-Object -First 1
+        if ($null -eq $runtime -or ![string]::Equals($runtime.FileName, $bundledRuntime, [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'The candidate did not load its bundled .NET runtime.'
+        }
+    }
     Set-Text RootPathBox $small
     Invoke-Control ScanButton
     Wait-Until { (Find-Control ScanButton).Current.IsEnabled } 'Synthetic scan did not finish.'
