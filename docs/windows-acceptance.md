@@ -12,6 +12,8 @@ powershell -NoProfile -File tools/Test-WindowsAcceptance.ps1 -ZipPath <your-cand
 
 Use only your own trusted candidate. The runner executes it. Neither this runner nor its verification/UI helpers invoke the .NET SDK. Windows PowerShell 5.1 and an interactive Windows desktop are required; keyboard automation needs the test app to retain focus. Do not use the desktop during the check. The current UI harness must match the candidate's supported controls.
 
+The keyboard harness verifies foreground ownership before sending keys and requests activation only for its own process's window. If Windows refuses, it waits briefly for the operator to activate the test window, then records `ForegroundUnavailable` and keeps acceptance incomplete. It does not change Windows foreground-lock policy or send keys to another app. Failed review runs close their own app process, forcibly if necessary, while retaining fixtures. Failure reports include only numeric source-line frames from the known review harness and a fixed failure category, never paths or raw stack traces.
+
 The runner:
 
 1. Verifies the ZIP checksum, archive paths, file hashes and package configuration, then extracts to a new local-only directory. It refuses candidates whose packaging inputs were uncommitted.

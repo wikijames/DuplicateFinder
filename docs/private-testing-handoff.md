@@ -18,7 +18,7 @@ The detailed evidence and scope are in [Windows acceptance](windows-acceptance.m
 
 | Category | Current status | Next action |
 | --- | --- | --- |
-| Hands-on accessibility/display | Not verified by automation | Fill the manual record for Narrator, contrast themes, offered scaling values and native Explorer drop |
+| Hands-on accessibility/display | Manual rows unverified; latest fresh keyboard run blocked by foreground permission | Activate the test app for keyboard validation and fill the manual record for Narrator, contrast themes, offered scaling values and native Explorer drop |
 | Separate clean machine | Not tested; only development laptop available | Retain as an open gate until an appropriate environment is available |
 | Broader storage/accounts/recovery-write failures | Partially covered by isolated NTFS/read-sharing and synthetic service tests | Collect controlled evidence on the intended configurations |
 | Long-session memory and physical SSD/HDD measurements | Initial synthetic metrics exist; broader measurements open | Use repeatable workloads and record conditions rather than assuming a speedup |
@@ -48,3 +48,11 @@ Use [the manual result template](manual-acceptance-results-template.md). Every r
 ## Consolidation baseline — 23 November 2026
 
 Merged baseline `889e330` built Release with zero warnings/errors and passed all 240 existing tests. No application or existing test source is changed by this handoff. Packaging now includes the exact manual-result template and tracks it as a packaging input. The draft archive verified all 263 manifest entries and all 19 manual rows remained Not tested; draft modified inputs were correctly identified. Final candidate identity and acceptance results are recorded with the committed candidate's reports.
+
+## Current final-candidate verification
+
+Candidate `5bcefdd` was built from committed packaging inputs with private-testing metadata. Its ZIP SHA-256 is `CE39203524956DDD4904470E4585A92F2038794549C1550B41284173C661916C`. Archive/template checks passed, including the exact bundled manual record and its 19 unverified rows. Both the seven-stage synthetic recovery check and five-scenario NTFS permission check passed on this candidate, with fixture permissions restored.
+
+The first three fresh general-UI repetitions failed and their reports were retained. A diagnostic rerun pinpointed the recovery-selector Tab assertion; the subsequent foreground guard established that Windows would not grant the test app foreground input. Fresh physical-keyboard verification therefore remains **blocked**, and the complete acceptance result is not marked passed. The application source is unchanged; no root cause is attributed to an application defect from this environment result.
+
+This review also fixed the test harness leaving app processes behind after failed checks, added safe foreground ownership checks and added path-free numeric failure frames. The remaining keyboard rerun needs the operator to activate the test window. No Narrator/contrast/scaling result has been supplied, and no manual row is automatically approved. These findings stay in this consolidation PR rather than being presented as completed release certification.

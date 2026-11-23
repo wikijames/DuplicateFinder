@@ -43,11 +43,15 @@ try {
                 ElapsedSeconds = $metrics[0].ElapsedSeconds
                 ProcessLifetimePeakWorkingSetBytes = $metrics[0].ProcessLifetimePeakWorkingSetBytes
                 ProcessCpuMilliseconds = $metrics[0].ProcessCpuMilliseconds
+                ForegroundActivationRequests = $metrics[0].ForegroundActivationRequests
             })
         }
         catch {
             # Never save exception messages, stdout/stderr, fixture paths or stack traces.
-            $runs.Add([pscustomobject]@{ Iteration = $iteration; Passed = $false; FailureType = $_.Exception.GetType().Name })
+            # Numeric frames from this known harness identify the failed check without paths.
+            $checkLines = @([regex]::Matches([string]$_.ScriptStackTrace, '(?i)Test-WindowsReviewUi\.ps1: line (\d+)') | ForEach-Object { [int]$_.Groups[1].Value })
+            $failureKind = if ($_.Exception.Data['ReviewFailureKind'] -eq 'ForegroundUnavailable') { 'ForegroundUnavailable' } else { 'UiCheckOrHarness' }
+            $runs.Add([pscustomobject]@{ Iteration = $iteration; Passed = $false; FailureType = $_.Exception.GetType().Name; ReviewCheckLines = $checkLines; FailureKind = $failureKind })
             Write-Host "Acceptance iteration $iteration failed; sanitized status will be retained."
         }
     }
@@ -82,6 +86,7 @@ finally {
 $passed = $runs.Count -eq $Repetitions -and @($runs | Where-Object { !$_.Passed }).Count -eq 0
 if ($IncludeRecoveryRoundTrip -and !$recovery.Passed) { $passed = $false }
 if ($IncludePermissionChecks -and !$permission.Passed) { $passed = $false }
+$keyboardForegroundBlocked = @($runs | Where-Object { !$_.Passed -and $_.FailureKind -eq 'ForegroundUnavailable' }).Count -gt 0
 $harnessFiles = @('Test-WindowsAcceptance.ps1', 'Test-WindowsPortable.ps1', 'Test-WindowsReviewUi.ps1')
 if ($IncludeRecoveryRoundTrip) { $harnessFiles += 'Test-WindowsRecoveryUi.ps1' }
 if ($IncludePermissionChecks) { $harnessFiles += 'Test-WindowsPermissionUi.ps1' }
@@ -96,6 +101,7 @@ $report = [pscustomobject]@{
     Harness = @($harness); WindowsBuild = [string]$windows.CurrentBuildNumber; WindowsUpdateRevision = $windows.UBR
     RuntimeDiscoveryEnvironmentOverridden = $true
     CleanMachineValidated = $false
+    KeyboardForegroundBlocked = $keyboardForegroundBlocked
     Runs = $runs.ToArray()
     RecoveryRoundTrip = $recovery
     PermissionChecks = $permission
@@ -104,6 +110,9 @@ $report = [pscustomobject]@{
         'Physical SSD/HDD performance', 'Historical intermittent scan IO failure investigation')
 }
 [IO.File]::WriteAllText($reportPath, ($report | ConvertTo-Json -Depth 8))
-if (!$passed) { throw 'Windows acceptance failed. See the local sanitized acceptance-report.json.' }
+if (!$passed) {
+    if ($keyboardForegroundBlocked) { throw 'Windows acceptance is incomplete: the interactive desktop did not grant keyboard foreground. See the local acceptance report.' }
+    throw 'Windows acceptance failed. See the local sanitized acceptance-report.json.'
+}
 [pscustomobject]@{ Result = 'PASS'; Repetitions = $Repetitions; SourceCommit = $verified.SourceCommit; ReportPath = $reportPath }
 # Keep the extraction, empty-runtime directory and synthetic fixtures for inspection.
