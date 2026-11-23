@@ -28,15 +28,19 @@ Push-Location $repoRoot
 try {
     $commit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[a-f0-9]{40}$') { throw 'A Git source commit is required.' }
-    $dirty = @(& git status --porcelain -- .gitattributes src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 docs/licenses docs/windows-portable-guide.md).Count -gt 0
+    $dirty = @(& git status --porcelain -- .gitattributes src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 tools/Test-WindowsRuntimeSupport.ps1 tools/Test-EmbeddedFontNotices.ps1 docs/licenses docs/windows-portable-guide.md).Count -gt 0
     $name = 'DuplicateFinder-' + $commit.Substring(0, 7) + '-win-x64'
     $runRoot = Join-Path $repoRoot ('local-only/packages/' + $commit.Substring(0, 7) + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     if (Test-Path -LiteralPath $runRoot) { throw 'The package output already exists. Existing outputs are never removed or overwritten.' }
     New-Item -ItemType Directory -Path $runRoot | Out-Null
     $publish = Join-Path $runRoot $name
 
+    # Check current support before publishing; never silently ship an outdated pinned patch.
+    $runtimeReview = & (Join-Path $PSScriptRoot 'Test-WindowsRuntimeSupport.ps1') -RuntimeVersion $runtimeVersion
+
     Invoke-DotNet @('restore', $project, '-r', 'win-x64', '-p:Configuration=Release', "-p:RuntimeFrameworkVersion=$runtimeVersion", '--locked-mode')
     Invoke-DotNet @('publish', $project, '-c', 'Release', '--no-restore', '-p:PublishProfile=WindowsPortable', '-p:DebugType=None', '-p:DebugSymbols=false', '-o', $publish)
+    [IO.File]::WriteAllText((Join-Path $publish 'runtime-support-review.json'), ($runtimeReview | ConvertTo-Json -Depth 5))
 
     $auditLines = & $dotnet list DuplicateFinder.slnx package --vulnerable --include-transitive --no-restore --source https://api.nuget.org/v3/index.json --format json --output-version 1
     if ($LASTEXITCODE -ne 0) { throw 'The NuGet vulnerability query did not complete successfully.' }
@@ -76,10 +80,11 @@ try {
         throw 'The expected self-contained runtime is missing.'
     }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/windows-portable-guide.md') -Destination (Join-Path $publish 'USER-GUIDE.md')
-    $start = "DuplicateFinder - unsigned Windows x64 local test candidate`r`n`r`nExtract the entire ZIP, then run DuplicateFinder.Desktop.exe.`r`nThe .NET runtime is included. Keep all files together.`r`nStart with copied test files and use quarantine for cleanup.`r`nRead USER-GUIDE.md and the package/review reports before sharing.`r`nNo installation, updater, public release approval or signing is implied.`r`n"
+    $start = "DuplicateFinder - unsigned Windows x64 private test candidate`r`n`r`nDistribution policy: private testing only. Public licensing and signing are deferred.`r`nExtract the entire ZIP, then run DuplicateFinder.Desktop.exe.`r`nThe .NET runtime is included. Keep all files together.`r`nStart with copied test files and use quarantine for cleanup.`r`nRead USER-GUIDE.md and the package/review reports before sharing.`r`nNo installation, updater, public release approval or signing is implied.`r`n"
     [IO.File]::WriteAllText((Join-Path $publish 'START-HERE.txt'), $start)
     $packageInfo = [pscustomobject]@{
         Schema = 1; SourceCommit = $commit; PackagingInputsModified = $dirty
+        DistributionPolicy = 'Private testing only'; PublicLicenseDecision = 'Deferred'; PublicSigningDecision = 'Deferred'
         CreatedUtc = [DateTimeOffset]::UtcNow.ToString('o'); Sdk = ((& $dotnet --version) -join '').Trim()
         Runtime = $runtimeVersion; RuntimeIdentifier = 'win-x64'; Configuration = 'Release'; SelfContained = $true
         Signed = $false; Distribution = 'Portable test candidate; Windows 11 x64 initial validation target'

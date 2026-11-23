@@ -12,4 +12,12 @@ Collected 15 November 2026. The mutable upstream URLs identify where the capture
 
 Git attributes preserve the captured license text bytes without line-ending conversion, including on Windows checkouts.
 
-Inter font provenance/version matching and native transitive attribution still need closure before public distribution. Including these files does not establish complete compliance, change upstream terms or select a license for DuplicateFinder.
+## Embedded Inter fonts — reviewed 23 November 2026
+
+All six TTF byte sequences inside the installed `Avalonia.Fonts.Inter` 12.1.6 assembly match their upstream files at Avalonia commit `cf8e564674700348947e93ab19105f27afe859a9`. Their OpenType name tables identify `Version 3.019;git-0a5106e0b`, and identify the Inter Project Authors and OFL-1.1. No third-party assembly or font was executed to inspect this data.
+
+`Inter-font-provenance.json` records each font's byte length, full SHA-256, Git blob, pinned source URL and the matching notice hash. `Test-EmbeddedFontNotices.ps1` statically checks those byte sequences and version records before packaging. Changed or missing fonts/notices stop packaging for review.
+
+The matching notice is `Inter-embedded-OFL.txt`, captured verbatim from https://raw.githubusercontent.com/rsms/inter/0a5106e0b/LICENSE.txt with SHA-256 `4D7D9C95E7D7F2F0EBF76D5E0B344826B74E903A34028EE18AB54BB639E45906`. It includes the 2016–2020 Inter Project Authors notice. The previously captured `Inter-OFL.txt` remains a separately identified supplemental upstream notice; it is not used as a substitute for this revision-matched notice.
+
+Native transitive attribution still needs review before public distribution. Including these files does not establish complete compliance, change upstream terms or select a license for DuplicateFinder.

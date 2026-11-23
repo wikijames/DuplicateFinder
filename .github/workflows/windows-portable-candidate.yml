@@ -30,13 +30,10 @@ jobs:
         id: portable
         shell: pwsh
         run: ./tools/Publish-WindowsPortable.ps1 -DotNetPath dotnet
-      - name: Retain candidate and checksum for review
-        uses: actions/upload-artifact@v7
-        with:
-          name: windows-x64-test-candidate
-          path: |
-            ${{ steps.portable.outputs.zip }}
-            ${{ steps.portable.outputs.checksum }}
-          if-no-files-found: error
-          retention-days: 7
-          compression-level: 0
+      - name: Verify candidate without retaining a distribution artifact
+        shell: pwsh
+        env:
+          CANDIDATE_ZIP: ${{ steps.portable.outputs.zip }}
+        run: ./tools/Test-WindowsPortable.ps1 -ZipPath $env:CANDIDATE_ZIP
+      # Owner policy is private testing only. Keep downloadable candidates local;
+      # public artifact retention/distribution needs a separately reviewed decision.

@@ -28,9 +28,9 @@ The verifier checks the sidecar, archive paths, all manifested file lengths/hash
 
 ## CI
 
-Normal CI builds/tests Release using its matching locked desktop graph. The separate **Windows portable test candidate** workflow is manual (`workflow_dispatch`) and retains only the generated ZIP and checksum for seven days. It does not upload private notes, the source workspace or other local-only content. The current repository default branch is development; the new workflow becomes available there after merge. Select the intended source branch when triggering it. Hosted execution has not been verified in this phase.
+Normal CI builds/tests Release using its matching locked desktop graph. The separate **Windows portable test candidate** workflow is manual (`workflow_dispatch`). Under the owner-approved private-testing policy, it builds and verifies the archive without uploading a retained ZIP artifact. It does not upload private notes, the source workspace or other local-only content. The repository default branch is development; select the intended source branch when triggering it. Consult the [current readiness review](windows-release-readiness.md) for hosted verification status.
 
-The manual workflow runs the same build/tests, audit and package checks before retaining an artifact. It does not perform GUI tests on hosted agents, create a release tag or publish a final release. Local packaging works independently of Actions.
+The manual workflow runs the same build/tests, current runtime support check, embedded-font/notice checks and package-integrity verification. It does not perform GUI tests on hosted agents, create a release tag or publish a final release. Local packaging works independently of Actions.
 
 ## Local validation
 

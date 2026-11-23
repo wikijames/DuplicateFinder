@@ -37,7 +37,10 @@ if ($allFiles.Count -ne $manifest.Count + 1) { throw 'Unmanifested package files
 if (@($allFiles | Where-Object { $_.Extension -in @('.pdb', '.jsonl', '.log') -or $_.Name -match '(?i)^AvaloniaUI\.' -or $_.Name -eq 'PROJECT_CONTEXT.md' }).Count -gt 0) {
     throw 'The archive contains development or local files.'
 }
-foreach ($name in @('package-info.json', 'dependency-inventory.json', 'nuget-vulnerability-report.json', 'file-manifest.json')) {
+$reports = @('package-info.json', 'dependency-inventory.json', 'nuget-vulnerability-report.json', 'file-manifest.json')
+# Earlier candidate schemas have no runtime review; preserve their integrity-check support.
+if (Test-Path -LiteralPath (Join-Path $root 'runtime-support-review.json')) { $reports += 'runtime-support-review.json' }
+foreach ($name in $reports) {
     if ((Get-Content -LiteralPath (Join-Path $root $name) -Raw) -match '"[A-Za-z]:[\\/]') { throw 'A generated report contains a local absolute path.' }
 }
 $info = Get-Content -LiteralPath (Join-Path $root 'package-info.json') -Raw | ConvertFrom-Json

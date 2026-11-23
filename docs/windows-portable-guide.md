@@ -2,7 +2,7 @@
 
 Extract the entire ZIP into a folder you own and run `DuplicateFinder.Desktop.exe`. Keep all extracted files together. This self-contained x64 build includes its .NET runtime; it does not need the .NET SDK. Windows 11 x64 is the initial validation target. A minimum supported Windows build and broader compatibility are not yet certified.
 
-This is an unsigned test candidate, not an installer or an approved public release. It does not register an installation, add shortcuts, update itself or change file associations. Do not disable Windows security controls to run it. Signing and a clean-machine acceptance check remain release work.
+The current distribution policy is **private testing only**. Public distribution, an application license and signing are deferred. This is an unsigned test candidate, not an installer or an approved public release. It does not register an installation, add shortcuts, update itself or change file associations. Do not disable Windows security controls to run it. Clean-machine acceptance remains open.
 
 ## Test safely
 
