@@ -150,6 +150,7 @@ try {
     Invoke-Control CleanupButton
     Assert-ProtectedFile
     Invoke-Control CancelCleanupButton
+    $keys = New-Object -ComObject WScript.Shell
     foreach ($theme in @('Light', 'Dark', 'System')) {
         Select-Choice AppearanceBox $theme
         Invoke-Control DiagnosticsButton
@@ -160,9 +161,51 @@ try {
         if ((Find-Control StartDiagnosticsButton).Current.IsOffscreen) { throw 'Diagnostics action clipped in a theme.' }
         $themeDialog.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
         Start-Sleep -Milliseconds 150
+
+        Invoke-Control RestoreBatchButton
+        $batchDialog = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Select recovery batch'))
+        if (!(Find-Control CancelRecoveryBatchButton).Current.HasKeyboardFocus) { throw 'Recovery batch Cancel must have initial focus.' }
+        $batchDialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(480, 360)
+        $longPath = Join-Path $fixture ('synthetic-batch-' + ('x' * 120))
+        Set-Text RestoreBatchPathBox $longPath
+        if ((Find-Control RestoreBatchPathBox).GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value -ne $longPath) { throw 'Wrapped batch input changed its full value.' }
+        foreach ($id in @('CancelRecoveryBatchButton', 'ReviewRecoveryBatchButton')) {
+            $control = Find-Control $id
+            $bounds = $control.Current.BoundingRectangle
+            $windowBounds = $batchDialog.Current.BoundingRectangle
+            if ($control.Current.IsOffscreen -or $bounds.Bottom -gt $windowBounds.Bottom -or $bounds.Right -gt $windowBounds.Right) { throw 'Recovery batch action clipped at compact size.' }
+        }
+        # An undersize request may be clamped or rejected by the window manager.
+        try { $batchDialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(480, 220) }
+        catch [System.Management.Automation.MethodInvocationException] { }
+        Start-Sleep -Milliseconds 150
+        if ((Find-Control ReviewRecoveryBatchButton).Current.BoundingRectangle.Bottom -gt $batchDialog.Current.BoundingRectangle.Bottom) { throw 'Undersize request hid the recovery review action.' }
+        (Find-Control CancelRecoveryBatchButton).SetFocus()
+        $keys.SendKeys('{TAB}')
+        Start-Sleep -Milliseconds 100
+        if (!(Find-Control ReviewRecoveryBatchButton).Current.HasKeyboardFocus) { throw 'Tab did not reach recovery review.' }
+        $keys.SendKeys('+{TAB}')
+        Start-Sleep -Milliseconds 100
+        if (!(Find-Control CancelRecoveryBatchButton).Current.HasKeyboardFocus) { throw 'Shift+Tab did not return to recovery Cancel.' }
+        $keys.SendKeys('+{TAB}')
+        Start-Sleep -Milliseconds 100
+        $browse = $batchDialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Select a quarantine batch folder'))
+        if ($null -eq $browse -or !$browse.Current.HasKeyboardFocus) { throw 'Recovery browse action has no contextual accessible name or keyboard focus.' }
+        $keys.SendKeys('+{TAB}')
+        Start-Sleep -Milliseconds 100
+        if (!(Find-Control RestoreBatchPathBox).Current.HasKeyboardFocus) { throw 'Recovery batch path is not in the keyboard sequence.' }
+        $keys.SendKeys('{ESC}')
+        Start-Sleep -Milliseconds 150
+        if (!(Find-Control RestoreBatchButton).Current.HasKeyboardFocus) { throw 'Escape did not restore focus to Restore batch.' }
+        Invoke-Control RestoreBatchButton
+        (Find-Control CancelRecoveryBatchButton).SetFocus()
+        $keys.SendKeys('{ENTER}')
+        Start-Sleep -Milliseconds 150
+        if (!(Find-Control RestoreBatchButton).Current.HasKeyboardFocus) { throw 'Default Cancel did not close batch selection safely.' }
     }
     (Find-Control RootPathBox).SetFocus()
-    $keys = New-Object -ComObject WScript.Shell
     $keys.SendKeys('^f')
     Start-Sleep -Milliseconds 150
     if (!(Find-Control ResultsSearchBox).Current.HasKeyboardFocus) { throw 'Ctrl+F did not focus search.' }
@@ -304,7 +347,7 @@ try {
         $control = Find-Control $id
         if ($control.Current.IsOffscreen -or $control.Current.BoundingRectangle.Height -lt 25) { throw 'Persistent notice clipped the review workspace.' }
     }
-    'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, settings, diagnostics defaults/size options/keyboard expanders, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
+    'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, recovery selector bounds/keyboard/cancellation, settings, diagnostics, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
     if ($PassThru) {
         $testProcess.Refresh()
         [pscustomobject]@{
