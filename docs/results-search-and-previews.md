@@ -8,7 +8,7 @@ Sort groups by filename ascending, extra-copy bytes descending, individual file 
 
 Select a file in the group, then choose **Preview selected file**. Preview is on demand and read-only; it does not start an external application, render HTML, execute scripts, verify equality, or alter cleanup decisions.
 
-Supported extensions are `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.log`, `.cs`, `.css`, `.html`, `.yml` and `.yaml`. Content must be valid UTF-8, optionally with a UTF-8 BOM, and contain no control characters other than tabs and line endings. Empty text is supported. Unsupported formats and encodings remain metadata-only, including images, PDFs and office documents.
+Supported text extensions are `.txt`, `.md`, `.csv`, `.json`, `.xml`, `.log`, `.cs`, `.css`, `.html`, `.yml` and `.yaml`. Content must be valid UTF-8, optionally with a UTF-8 BOM, and contain no control characters other than tabs and line endings. Empty text is supported. PNG/JPEG files now have a separate [bounded image comparison](image-comparison-previews.md). Other unsupported formats and encodings remain metadata-only, including PDFs and office documents.
 
 Preview accepts files up to 64 KiB and reads at most 65,537 bytes. Larger files are not partially decoded. Work runs off the UI thread, with cancellation on window close. Only one preview can be requested at a time; scan, review and cleanup controls are disabled while the preview is loading or its modal dialog is open.
 

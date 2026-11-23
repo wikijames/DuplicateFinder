@@ -37,7 +37,14 @@ public partial class MainWindow : Window
         ResultsSortBox.SelectedIndex = 0;
         AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
         AppearanceBox.SelectedIndex = 0;
-        GroupFilesList.SelectionChanged += (_, _) => PreviewFileButton.IsEnabled = !SetupIsBusy && GroupFilesList.SelectedItem is FileReviewRow;
+        GroupFilesList.SelectionChanged += (_, _) =>
+        {
+            var row = GroupFilesList.SelectedItem as FileReviewRow;
+            var image = row is not null && ImageFilePreview.Supports(row.FullPath);
+            PreviewFileButton.Content = image ? "Compare images" : "Preview file";
+            AutomationProperties.SetName(PreviewFileButton, image ? "Compare selected duplicate images" : "Preview selected file");
+            PreviewFileButton.IsEnabled = !SetupIsBusy && row is not null;
+        };
         KeyDown += (_, e) =>
         {
             if (e.Key == Avalonia.Input.Key.Escape && _scanCancellation is not null)

@@ -42,7 +42,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 - [x] Add multiple scan roots and folder drag/drop, with duplicate/overlapping-root handling. Native Explorer drag/drop remains a manual release check; see [scan controls and validation](multiple-scan-folders.md).
 - [x] Expose supported size, hidden-file and exclusion options with clear defaults.
 - [x] Add group sorting/search while preserving whole groups and protected keep choices. Cleanup remains scoped to the reviewed group; optional individual removal selection is deferred.
-- [x] Add bounded, read-only UTF-8 text previews; unsupported formats retain metadata-only details. See [results controls and preview limits](results-search-and-previews.md). Image/PDF rendering remains a separate extension.
+- [x] Add bounded, read-only UTF-8 text previews; unsupported formats retain metadata-only details. See [results controls and preview limits](results-search-and-previews.md). PDF rendering remains a separate extension.
+- [x] Add bounded, on-demand PNG/JPEG comparison of the protected keep file and one extra copy, with read-only navigation. See [image comparison and limits](image-comparison-previews.md). Other image formats, PDF rendering and visual-similarity detection remain separate.
 - [x] Show measured scan stages and cumulative work counts without a completion percentage. See [progress and keyboard validation](scan-progress-and-accessibility.md).
 - [ ] Complete keyboard navigation, screen-reader, high contrast and display scaling validation. Ctrl+F, Escape cancellation, automation labels and populated minimum-window layout have local checks; the wider matrix remains open.
 - [x] Provide session-only System/Light/Dark appearance with theme-aware colors and verified selection controls.

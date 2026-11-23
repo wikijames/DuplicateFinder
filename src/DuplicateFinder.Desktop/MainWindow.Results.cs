@@ -52,6 +52,14 @@ public partial class MainWindow
         SetScanInProgress(false);
         try
         {
+            if (_workspace.Selection is { } selection && ImageFilePreview.Supports(file.FullPath))
+            {
+                var comparison = new ImageComparisonDialog(selection.KeepFilePath, selection.RemoveFilePaths, file.FullPath,
+                    _workspace.CleanupAction == DuplicateFinder.Core.DuplicateAction.Delete);
+                await comparison.ShowComparisonAsync(this);
+                StatusText.Text = _scanCompletionStatus ?? "Image comparison closed.";
+                return;
+            }
             StatusText.Text = "Reading bounded text preview...";
             var result = await Task.Run(() => TextFilePreview.ReadAsync(file.FullPath, cancellation.Token), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();

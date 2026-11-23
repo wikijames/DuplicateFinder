@@ -70,6 +70,18 @@ function Assert-ProtectedFile {
     if (!(Find-Control CancelCleanupButton).Current.HasKeyboardFocus) { throw 'Cancel must have initial confirmation focus.' }
 }
 
+function Clear-ScanFolders {
+    Invoke-Control ManageFoldersButton
+    $folderDialog = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Selected scan folders'))
+    foreach ($name in @('Clear selection', 'Close')) {
+        $button = $folderDialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, $name))
+        $button.GetCurrentPattern([Windows.Automation.InvokePattern]::Pattern).Invoke()
+        Start-Sleep -Milliseconds 150
+    }
+}
+
 try {
     $condition = [Windows.Automation.AndCondition]::new(
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $testProcess.Id),
@@ -210,6 +222,63 @@ try {
     Start-Sleep -Milliseconds 150
     if (!(Find-Control DiagnosticsButton).Current.HasKeyboardFocus) { throw 'Diagnostics focus did not return.' }
 
+    # Separate fixture root keeps the existing 301-group scalability assertion unchanged.
+    Add-Type -AssemblyName System.Drawing
+    $imageFixture = Join-Path ([IO.Path]::GetTempPath()) ('DuplicateFinder-ImageSmoke-' + [guid]::NewGuid().ToString('N'))
+    $imagePaths = @()
+    foreach ($name in @('original', 'copy-one', 'copy-two')) {
+        $folder = Join-Path $imageFixture $name
+        New-Item -ItemType Directory -Path $folder | Out-Null
+        $imagePaths += Join-Path $folder 'same.png'
+    }
+    $bitmap = New-Object System.Drawing.Bitmap 256, 128
+    $graphics = [Drawing.Graphics]::FromImage($bitmap)
+    try {
+        $graphics.Clear([Drawing.Color]::CornflowerBlue)
+        $graphics.FillRectangle([Drawing.Brushes]::Orange, 0, 0, 128, 64)
+        $bitmap.Save($imagePaths[0], [Drawing.Imaging.ImageFormat]::Png)
+    } finally { $graphics.Dispose(); $bitmap.Dispose() }
+    [IO.File]::Copy($imagePaths[0], $imagePaths[1])
+    [IO.File]::Copy($imagePaths[0], $imagePaths[2])
+    $imageHashes = @($imagePaths | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash })
+    Clear-ScanFolders
+    Select-Choice FileTypeBox 'Images'
+    Set-Text RootPathBox $imageFixture
+    Invoke-Control ScanButton
+    Wait-Until { (Find-Control ScanButton).Current.IsEnabled } 'Synthetic image scan did not finish.'
+    if ((Find-Control VisibleGroupsText).Current.Name -ne '1 of 1 groups') { throw 'Expected one exact image group.' }
+    Select-Choice KeepFileComboBox 'copy-two'
+    foreach ($theme in @('Light', 'Dark', 'System')) {
+        Select-Choice AppearanceBox $theme
+        $rows = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
+        $rows[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
+        Invoke-Control PreviewFileButton
+        Wait-Until { (Find-Control CopyImageMetadata).Current.Name.IndexOf('256', [StringComparison]::Ordinal) -ge 0 } 'Image thumbnail did not load.'
+        if ((Find-Control ImageKeepPath).GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value -ne $imagePaths[2]) { throw 'Image preview changed the kept path.' }
+        if (!(Find-Control CloseImageComparison).Current.HasKeyboardFocus) { throw 'Image close button must have initial focus.' }
+        if (!(Find-Control NextImageCopy).Current.IsEnabled) { throw 'Next image copy must be available.' }
+        $before = (Find-Control ImageCopyPath).GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value
+        Invoke-Control NextImageCopy
+        Wait-Until { (Find-Control PreviousImageCopy).Current.IsEnabled } 'Image navigation did not finish.'
+        if ((Find-Control ImageCopyPath).GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value -eq $before) { throw 'Next did not change the comparison file.' }
+        $dialog = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Compare duplicate images'))
+        $dialog.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(480, 360)
+        Start-Sleep -Milliseconds 150
+        if ((Find-Control CloseImageComparison).Current.IsOffscreen) { throw 'Image close button clipped at minimum size.' }
+        Invoke-Control CloseImageComparison
+        if (!(Find-Control PreviewFileButton).Current.HasKeyboardFocus) { throw 'Image preview focus did not return.' }
+        Invoke-Control CleanupButton
+        $kept = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Protected file; will be kept'))
+        if ($kept.GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value -ne $imagePaths[2]) { throw 'Image navigation changed cleanup intent.' }
+        Invoke-Control CancelCleanupButton
+    }
+    $afterHashes = @($imagePaths | ForEach-Object { (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash })
+    if (($imageHashes -join ',') -ne ($afterHashes -join ',')) { throw 'Image viewing modified a synthetic source.' }
+    'PASS: image comparison, nondefault keep protection, extra-copy navigation, all themes, compact dialog, close focus and unchanged source hashes.'
+
     $large = Join-Path $fixture 'many-groups'
     New-Item -ItemType Directory -Path $large | Out-Null
     for ($group = 0; $group -lt 300; $group++) {
@@ -220,6 +289,8 @@ try {
     if (![SyntheticReviewLinks]::Create((Join-Path $small 'original/alias.txt'), (Join-Path $small 'original/same.txt'), [IntPtr]::Zero)) {
         throw 'Could not create the synthetic warning fixture.'
     }
+    Clear-ScanFolders
+    Select-Choice FileTypeBox 'All files'
     Set-Text RootPathBox $fixture
     Invoke-Control ScanButton
     Wait-Until { (Find-Control ScanButton).Current.IsEnabled } 'Large synthetic result set did not finish.'
