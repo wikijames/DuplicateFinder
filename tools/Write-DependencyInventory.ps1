@@ -73,9 +73,18 @@ foreach ($runtime in $deps.libraries.PSObject.Properties | Where-Object { $_.Val
     $files | Copy-Item -Destination $destination
 }
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/licenses') -Destination (Join-Path $noticeRoot 'Additional') -Recurse
+$fontReview = & (Join-Path $PSScriptRoot 'Test-EmbeddedFontNotices.ps1') -AssemblyPath (Join-Path $publish 'Avalonia.Fonts.Inter.dll')
+$noticeFiles = @(Get-ChildItem -LiteralPath $noticeRoot -File -Recurse | Sort-Object FullName | ForEach-Object {
+    [pscustomobject]@{
+        File = $_.FullName.Substring($publish.TrimEnd('\', '/').Length + 1).Replace('\', '/')
+        Bytes = $_.Length; SHA256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
+    }
+})
 $report = [pscustomobject]@{
     Schema = 1; Scope = 'Release restore graph and published dependency graph; not a legal compliance certification'
     Packages = $inventory.ToArray()
-    OpenReviewItems = @('Application distribution/license choice', 'Native transitive attribution review', 'Inter embedded font provenance/version review', 'Debug-only diagnostics support license terms')
+    EmbeddedFontReview = $fontReview
+    NoticeFiles = $noticeFiles
+    OpenReviewItems = @('Application distribution/license choice', 'Native transitive attribution review', 'Debug-only diagnostics support license terms')
 }
 [IO.File]::WriteAllText((Join-Path $publish 'dependency-inventory.json'), ($report | ConvertTo-Json -Depth 8))

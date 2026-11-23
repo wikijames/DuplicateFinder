@@ -2,6 +2,8 @@
 
 This is the remaining work toward a Windows v1 for exact duplicate files. It is not an effort percentage or a promise that the wider roadmap is complete. Image similarity and Android are separate release scopes.
 
+The current owner-approved distribution scope is **private testing only**; public licensing/signing and Windows v1 approval are deferred. See the [release-readiness review](windows-release-readiness.md) for completed evidence and remaining gates.
+
 ## Completed: duplicate review workspace
 
 - [x] Start from merged `development`, with the diagnostics and guarded-cleanup work present.
@@ -58,6 +60,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 - [x] Add explicit opt-in, session-only persistent diagnostics with a fixed privacy schema, 16/64 KiB file caps, a bounded queue and user-managed retention. See [behavior and validation](opt-in-diagnostics.md).
 - [x] Audit direct/transitive NuGet vulnerabilities and inventory license metadata/portable footprint. See [findings and scope](dependency-review.md).
 - [ ] Close application-license choice, native/font attribution and bundled-runtime security review before public distribution.
+- [x] Match the six embedded Inter fonts to pinned source bytes and their revision-specific OFL notice; enforce font/notice hashes when packaging.
+- [x] Check the pinned .NET runtime against current supported servicing metadata during packaging; retain the dated result. Broader native/security review remains open.
 - [ ] Expand automated and interactive tests for the supported Windows and file-system matrix.
 
 ## Packaging and release gate

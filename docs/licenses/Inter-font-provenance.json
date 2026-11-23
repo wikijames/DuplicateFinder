@@ -1,0 +1,63 @@
+﻿{
+    "Schema":  1,
+    "ReviewedOn":  "2026-11-23",
+    "WrapperPackage":  "Avalonia.Fonts.Inter/12.1.6",
+    "AvaloniaSourceCommit":  "cf8e564674700348947e93ab19105f27afe859a9",
+    "FontVersion":  "3.019",
+    "FontSourceCommit":  "0a5106e0b",
+    "Copyright":  "Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter)",
+    "License":  "OFL-1.1",
+    "LicenseSource":  "https://raw.githubusercontent.com/rsms/inter/0a5106e0b/LICENSE.txt",
+    "Fonts":  [
+                  {
+                      "File":  "Inter-Bold.ttf",
+                      "Bytes":  316100,
+                      "SHA256":  "790C108BEFE859DAC2DDBD20AF3FBB6917C601B3D544C8A05761519F3B5508FE",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "8e82c70d1081e2857ada1b73395d4f42c2e8adc9",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-Bold.ttf"
+                  },
+                  {
+                      "File":  "Inter-Light.ttf",
+                      "Bytes":  310420,
+                      "SHA256":  "C44FF7A5FDE4816F94FC1E5E232B021A812A411339DDD08B0A475CA6E21DB810",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "9e265d8905dd0ab93e4830a461453e1dbdadaa56",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-Light.ttf"
+                  },
+                  {
+                      "File":  "Inter-Medium.ttf",
+                      "Bytes":  314712,
+                      "SHA256":  "10D48331F5B3C7362CA357B00C17AC4863AD35199B13B0ECEB0962C8C1AD7DC9",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "b53fb1c4acbe100c7a91f07564b7f1fa2d5bab12",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-Medium.ttf"
+                  },
+                  {
+                      "File":  "Inter-Regular.ttf",
+                      "Bytes":  309828,
+                      "SHA256":  "41AB0F707A2BFAB8133CCDFCDAB52282F5F79E5751F43A264805451C7BB95FB8",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "8d4eebf20665d5ae746c622a2bd42274b54d2bf1",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-Regular.ttf"
+                  },
+                  {
+                      "File":  "Inter-SemiBold.ttf",
+                      "Bytes":  315756,
+                      "SHA256":  "E8CBC2B88BC4268237FF5E251776D3C54EDCB14E015A9E66E4883BDE4B55F13F",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "c6aeeb16a6d7f754258bc7f3f2101d287976e6e6",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-SemiBold.ttf"
+                  },
+                  {
+                      "File":  "Inter-Thin.ttf",
+                      "Bytes":  310516,
+                      "SHA256":  "B778A52B84F39BA1D3B08553A246643573B33453B5481B4D09C604BCCCED930D",
+                      "PrefixBase64":  "AAEAAAAQAQAABAAAR0RFRg==",
+                      "GitBlob":  "7aed55d560065b7a5a1975121e0b13ac25e798c8",
+                      "Source":  "https://raw.githubusercontent.com/AvaloniaUI/Avalonia/cf8e564674700348947e93ab19105f27afe859a9/src/Avalonia.Fonts.Inter/Assets/Inter-Thin.ttf"
+                  }
+              ],
+    "LicenseFile":  "Inter-embedded-OFL.txt",
+    "LicenseSHA256":  "4D7D9C95E7D7F2F0EBF76D5E0B344826B74E903A34028EE18AB54BB639E45906"
+}
