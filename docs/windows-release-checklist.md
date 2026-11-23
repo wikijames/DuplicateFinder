@@ -62,13 +62,16 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Packaging and release gate
 
+Use the [repeatable local checks and manual acceptance matrix](windows-acceptance.md) to collect evidence; passing local automation does not close the remaining manual gates.
+
 - [x] Prepare a repeatable self-contained Windows x64 portable test candidate with notices, inventories, checksums and extraction checks. See [build and validation](windows-release-preparation.md). Installer support is deferred.
 - [ ] Certify the minimum supported Windows build and final architecture/support matrix; Windows 11 x64 is the initial candidate target.
 - [ ] Test a Release publish on a clean Windows environment, including a machine without the SDK.
 - [ ] Validate dependencies, install/update/uninstall behavior, application identity and any signing requirements.
 - [x] Document portable-candidate use, replacement/removal, cleanup/restore, diagnostics and known limitations in the [user guide](windows-portable-guide.md).
 - [ ] Finalize public-release support, signing and acceptance documentation after the remaining gates pass.
-- [ ] Verify hosted CI and review branch-protection settings.
+- [x] Verify hosted build/tests for merged image-preview baseline `6a7025f`; see [acceptance evidence](windows-acceptance.md).
+- [ ] Verify the manual portable-candidate workflow and decide branch-protection settings. The branch API reported `development` as unprotected during acceptance review.
 - [ ] Complete the release safety review and acceptance checklist before tagging a Windows v1 release.
 
 ## Optional additions after the exact-file Windows baseline

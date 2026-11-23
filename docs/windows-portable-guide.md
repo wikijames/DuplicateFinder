@@ -6,7 +6,9 @@ This is an unsigned test candidate, not an installer or an approved public relea
 
 ## Test safely
 
-Start with a folder of copied/generated files. Add folders, choose file-type/size/exclusion settings, then scan. Results are exact byte matches. Similar-looking images are not similarity results. Review each group and use **File to keep** to protect one copy. Selecting a row selects a preview, not a removal target. Text preview supports bounded UTF-8 files; other formats retain metadata.
+Start with a folder of copied/generated files. Add folders, choose file-type/size/exclusion settings, then scan. Results are exact byte matches. Similar-looking images are not similarity results. Review each group and use **File to keep** to protect one copy. Selecting a row selects a preview, not a removal target.
+
+Text preview supports bounded UTF-8 files. For PNG/JPEG images, select a row and choose **Compare images** to view the kept image beside an extra copy. Previous/Next changes only the preview, preserving your keep choice. Image previews are limited to 16 MiB, 12 megapixels and 8192 pixels per side; other formats and oversized/damaged files retain metadata or an explanatory fallback. Previews show current file contents and do not reverify scan matches.
 
 Review warnings for skipped, changing, inaccessible or hard-linked files. A completed operation does not guarantee that every path was scanned. Cancel scans with the Cancel button or Escape. Large storage calls may delay cancellation.
 
