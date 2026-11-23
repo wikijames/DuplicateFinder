@@ -1,8 +1,9 @@
-param([string]$ExecutablePath)
+param([string]$ExecutablePath, [switch]$PassThru)
 # Use only an executable built from reviewed DuplicateFinder source. Never pass an untrusted app.
 # Run after a Windows x64 Release build. Uses only a new app process and generated fixtures.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+if (-not ('SyntheticReviewLinks' -as [type])) {
 Add-Type @'
 using System;
 using System.Runtime.InteropServices;
@@ -12,6 +13,7 @@ public static class SyntheticReviewLinks {
     public static extern bool Create(string alias, string original, IntPtr security);
 }
 '@
+}
 $executable = if ([string]::IsNullOrWhiteSpace($ExecutablePath)) {
     [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../src/DuplicateFinder.Desktop/bin/Release/net10.0/DuplicateFinder.Desktop.exe'))
 } else { [IO.Path]::GetFullPath($ExecutablePath) }
@@ -23,6 +25,7 @@ foreach ($name in @('original', 'copy-one', 'copy-two')) {
     New-Item -ItemType Directory -Path $folder | Out-Null
     [IO.File]::WriteAllText((Join-Path $folder 'same.txt'), 'Synthetic review smoke fixture')
 }
+$elapsed = [Diagnostics.Stopwatch]::StartNew()
 $testProcess = Start-Process -FilePath $executable -PassThru -WindowStyle Normal
 $desktop = [Windows.Automation.AutomationElement]::RootElement
 $script:reviewWindow = $null
@@ -302,6 +305,16 @@ try {
         if ($control.Current.IsOffscreen -or $control.Current.BoundingRectangle.Height -lt 25) { throw 'Persistent notice clipped the review workspace.' }
     }
     'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, settings, diagnostics defaults/size options/keyboard expanders, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
+    if ($PassThru) {
+        $testProcess.Refresh()
+        [pscustomobject]@{
+            UiChecksPassed = $true
+            BundledRuntimeVerified = [bool](Test-Path -LiteralPath $bundledRuntime)
+            ElapsedSeconds = [Math]::Round($elapsed.Elapsed.TotalSeconds, 2)
+            ProcessLifetimePeakWorkingSetBytes = $testProcess.PeakWorkingSet64
+            ProcessCpuMilliseconds = [Math]::Round($testProcess.TotalProcessorTime.TotalMilliseconds, 2)
+        }
+    }
 }
 finally {
     if ($null -ne $script:reviewWindow) {

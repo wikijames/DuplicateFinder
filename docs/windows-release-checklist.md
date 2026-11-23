@@ -62,6 +62,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 ## Packaging and release gate
 
+Use the [repeatable local checks and manual acceptance matrix](windows-acceptance.md) to collect evidence; passing local automation does not close the remaining manual gates.
+
 - [x] Prepare a repeatable self-contained Windows x64 portable test candidate with notices, inventories, checksums and extraction checks. See [build and validation](windows-release-preparation.md). Installer support is deferred.
 - [ ] Certify the minimum supported Windows build and final architecture/support matrix; Windows 11 x64 is the initial candidate target.
 - [ ] Test a Release publish on a clean Windows environment, including a machine without the SDK.
