@@ -4,6 +4,8 @@ This is the remaining work toward a Windows v1 for exact duplicate files. It is 
 
 The current owner-approved distribution scope is **private testing only**; public licensing/signing and Windows v1 approval are deferred. See the [release-readiness review](windows-release-readiness.md) for completed evidence and remaining gates.
 
+Use the [consolidated private-testing handoff](private-testing-handoff.md) as the current summary and the [manual result template](manual-acceptance-results-template.md) to record remaining observations. An unchecked acceptance gate is not automatically another product feature phase.
+
 ## Completed: duplicate review workspace
 
 - [x] Start from merged `development`, with the diagnostics and guarded-cleanup work present.

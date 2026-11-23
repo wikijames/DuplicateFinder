@@ -6,7 +6,7 @@ The current distribution policy is **private testing only**. Public distribution
 
 ## Test safely
 
-Start with a folder of copied/generated files. Add folders, choose file-type/size/exclusion settings, then scan. Results are exact byte matches. Similar-looking images are not similarity results. Review each group and use **File to keep** to protect one copy. Selecting a row selects a preview, not a removal target.
+Start with a separate folder of copied/generated files outside the extracted application folder. Add folders, choose file-type/size/exclusion settings, then scan. Results are exact byte matches. Similar-looking images are not similarity results. Review each group and use **File to keep** to protect one copy. Selecting a row selects a preview, not a removal target.
 
 Text preview supports bounded UTF-8 files. For PNG/JPEG images, select a row and choose **Compare images** to view the kept image beside an extra copy. Previous/Next changes only the preview, preserving your keep choice. Image previews are limited to 16 MiB, 12 megapixels and 8192 pixels per side; other formats and oversized/damaged files retain metadata or an explanatory fallback. Previews show current file contents and do not reverify scan matches.
 
@@ -27,6 +27,8 @@ Diagnostics starts off each launch. Opt in only when needed, choose a new local 
 Close the app before replacing its application folder. Extract a newer candidate into a separate folder and verify it first. Removing an application folder is not a recovery procedure: retain quarantine batches/manifests and any logs you need separately. The portable package has no uninstaller or automatic update process.
 
 ## Report a test issue
+
+The package includes `MANUAL-ACCEPTANCE.md` for the remaining hands-on checks. Copy it outside the extracted application folder before recording Pass/Fail/Not tested results. Keep the packaged original unchanged for integrity checks. Narrator, contrast themes, display scaling and unavailable test environments must remain Not tested until actually exercised.
 
 Record the source commit from `package-info.json`, Windows version, display scaling, chosen action and a reproduction using generated files. Do not include personal paths, documents or diagnostic files without reviewing them. A previous candidate had one undiagnosed first-scan IOException; retry and subsequent fresh-process tests passed. Report any recurrence rather than treating it as fixed.
 
