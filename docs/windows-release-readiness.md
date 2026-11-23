@@ -14,6 +14,7 @@ The owner selected **private testing only**. Continue providing unsigned, self-c
 - Added a relative-path, SHA-256 notice-file inventory while preserving original package/runtime notices. Broader native-transitive and developer-tool terms review remains open.
 - Marked candidate metadata, startup instructions and the portable guide as private testing only. Application services, UI behavior, public contracts, dependency versions and cleanup guarantees are unchanged.
 - Changed the manual hosted workflow to verify the package without uploading a downloadable candidate artifact. Private testing candidates remain local; no release tag or public binary distribution is created.
+- Ran the revised [hosted packaging workflow](https://github.com/wikijames/DuplicateFinder/actions/runs/45140516551) on `f6b2ffd`: all steps passed, including build/tests, audited packaging and archive verification. The run retained zero artifacts. This hosted machine has an SDK, so it does not close clean-machine/no-SDK acceptance.
 
 ## Support and acceptance boundary
 
@@ -25,7 +26,7 @@ The owner selected **private testing only**. Continue providing unsigned, self-c
 | Accessibility/display | Existing keyboard/UI Automation, themes and compact layouts | Narrator, high contrast and full 125–200% rendered/display checks |
 | Safety | Explicit keep choice, confirmation, guarded quarantine/restore, separately confirmed permanent deletion | Retain guarantees and complete acceptance; historical intermittent scan IOException remains undiagnosed |
 | Public distribution | Deferred by owner | License/distribution terms, complete attribution/security review, signing/support policy and final acceptance approval |
-| Repository | Normal hosted build/tests previously passed; manual candidate workflow unverified and development previously unprotected | Run/review hosted packaging and decide protection policy; no remote settings were changed here |
+| Repository | Hosted build/tests and manual validation-only packaging passed; development previously reported unprotected | Decide protection policy; no repository settings were changed here |
 
 Use [Windows acceptance](windows-acceptance.md) for the exact manual matrix and clean-machine handoff. Only the development laptop is currently available, so the clean-machine row remains Not tested. A later successful retry does not close the historical I/O issue.
 
@@ -39,3 +40,9 @@ powershell -NoProfile -File tools/Test-WindowsAcceptance.ps1 -ZipPath <your-cand
 Build/publish uses the SDK and network; the acceptance runner needs neither an SDK invocation nor a repository credential. The publisher now additionally needs Microsoft's official servicing endpoint. Never run untrusted candidates through these tools. Preserve the ZIP checksum, source commit and sanitized acceptance report when recording results.
 
 For each later candidate, re-run the NuGet and runtime checks, verify fonts/notices, build/test, verify the archive and collect acceptance evidence. This is a repeatable private-testing path, not a claim that all release gates are complete.
+
+## Final local candidate evidence
+
+The committed `f6b2ffd` private candidate passed three fresh-process acceptance repetitions. Its ZIP SHA-256 is `7372F79C473D840698E116D5B71D968A43144403F0DBF5C00C67EE2145B0E2B0`; all 262 manifest entries verified. Packaging inputs were committed, metadata states private testing only, and each UI process loaded its bundled runtime. The inventory records 34 notice files and six verified embedded fonts. NuGet reported zero known mapped package vulnerabilities, and the official servicing check confirmed .NET 10.0.15 was current at packaging time.
+
+Negative checks rejected an older runtime patch and an altered embedded-font copy. Font inspection was static and the altered copy was synthetic; no original dependency/file was changed. The previous scan I/O failure did not recur, but its cause remains undiagnosed. Clean-machine, display/accessibility and broader storage acceptance remain open.

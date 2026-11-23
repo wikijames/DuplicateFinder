@@ -75,7 +75,8 @@ Use the [repeatable local checks and manual acceptance matrix](windows-acceptanc
 - [x] Document portable-candidate use, replacement/removal, cleanup/restore, diagnostics and known limitations in the [user guide](windows-portable-guide.md).
 - [ ] Finalize public-release support, signing and acceptance documentation after the remaining gates pass.
 - [x] Verify hosted build/tests for merged image-preview baseline `6a7025f`; see [acceptance evidence](windows-acceptance.md).
-- [ ] Verify the manual portable-candidate workflow and decide branch-protection settings. The branch API reported `development` as unprotected during acceptance review.
+- [x] Verify the manual portable-candidate workflow without uploading a binary artifact; see [hosted readiness evidence](windows-release-readiness.md).
+- [ ] Decide branch-protection settings. The branch API reported `development` as unprotected during acceptance review.
 - [ ] Complete the release safety review and acceptance checklist before tagging a Windows v1 release.
 
 ## Optional additions after the exact-file Windows baseline
