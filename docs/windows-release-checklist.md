@@ -49,6 +49,7 @@ The current owner-approved distribution scope is **private testing only**; publi
 - [x] Add bounded, on-demand PNG/JPEG comparison of the protected keep file and one extra copy, with read-only navigation. See [image comparison and limits](image-comparison-previews.md). Other image formats, PDF rendering and visual-similarity detection remain separate.
 - [x] Show measured scan stages and cumulative work counts without a completion percentage. See [progress and keyboard validation](scan-progress-and-accessibility.md).
 - [ ] Complete keyboard navigation, screen-reader, high contrast and display scaling validation. Ctrl+F, Escape cancellation, automation labels and populated minimum-window layout have local checks; the wider matrix remains open.
+- [x] Fix recovery batch selection clipping and initial focus; validate compact sizing, long-path input, keyboard traversal and cancellation across all three themes. See [selector accessibility](recovery-dialog-accessibility.md). Wider screen-reader/display validation remains open.
 - [x] Provide session-only System/Light/Dark appearance with theme-aware colors and verified selection controls.
 - [ ] Validate rendered contrast and appearance across the Windows/display/accessibility matrix before release.
 

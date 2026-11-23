@@ -564,27 +564,32 @@ public partial class MainWindow : Window
 
     private async Task<string?> PromptForBatchAsync()
     {
-        var pathBox = new TextBox { Text = _lastBatchDirectory, PlaceholderText = "Paste the batch folder path" };
+        var pathBox = new TextBox { Text = _lastBatchDirectory, PlaceholderText = "Paste the batch folder path", TextWrapping = TextWrapping.Wrap, MaxHeight = 80 };
         AutomationProperties.SetAutomationId(pathBox, "RestoreBatchPathBox");
         AutomationProperties.SetName(pathBox, "Recovery batch folder");
         var cancel = new Button { Content = "Cancel", IsCancel = true, IsDefault = true };
         var review = new Button { Content = "Review restore" };
+        AutomationProperties.SetAutomationId(cancel, "CancelRecoveryBatchButton");
+        AutomationProperties.SetAutomationId(review, "ReviewRecoveryBatchButton");
         var validationText = new TextBlock { TextWrapping = TextWrapping.Wrap };
-        var dialog = new Window
+        AutomationProperties.SetAutomationId(validationText, "RecoveryBatchValidationText");
+        AutomationProperties.SetName(validationText, "Recovery batch selection status");
+        AutomationProperties.SetLiveSetting(validationText, AutomationLiveSetting.Polite);
+        var content = new StackPanel
         {
-            Title = "Select recovery batch", Width = 640, Height = 280, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Content = new StackPanel
+            Spacing = 16,
+            Children =
             {
-                Margin = new Thickness(20), Spacing = 16,
-                Children =
-                {
-                    new TextBlock { Text = "Select a batch folder inside .DuplicateFinder-Quarantine. The protected manifest requires the original Windows account.", TextWrapping = TextWrapping.Wrap },
-                    CreateFolderEntry(pathBox, validationText, "Select a quarantine batch folder"),
-                    validationText,
-                    new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, review } }
-                }
+                new TextBlock { Text = "Select a batch folder inside .DuplicateFinder-Quarantine. The protected manifest requires the original Windows account.", TextWrapping = TextWrapping.Wrap },
+                new TextBlock { Text = "Recovery batch folder", FontWeight = FontWeight.SemiBold },
+                CreateFolderEntry(pathBox, validationText, "Select a quarantine batch folder"),
+                validationText
             }
         };
+        var actions = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right, Spacing = 8, Children = { cancel, review } };
+        var dialog = CreateReviewDialog("Select recovery batch", content, actions, cancel);
+        dialog.Width = 640;
+        dialog.Height = 360;
         cancel.Click += (_, _) => dialog.Close(false);
         review.Click += (_, _) => dialog.Close(true);
         return await dialog.ShowDialog<bool>(this) ? pathBox.Text?.Trim() : null;
@@ -593,6 +598,7 @@ public partial class MainWindow : Window
     private Grid CreateFolderEntry(TextBox pathBox, TextBlock validationText, string title)
     {
         var browse = new Button { Content = "Browse" };
+        AutomationProperties.SetName(browse, title);
         var row = new Grid { ColumnDefinitions = new ColumnDefinitions("*,Auto"), ColumnSpacing = 8 };
         Grid.SetColumn(browse, 1);
         row.Children.Add(pathBox);
