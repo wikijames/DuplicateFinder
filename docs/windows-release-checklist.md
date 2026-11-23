@@ -25,6 +25,7 @@ The current owner-approved distribution scope is **private testing only**; publi
 - [x] Test deterministic interruptions, stale/locked files, restore conflicts and manifest failures with synthetic fixtures. See [guarded quarantine](guarded-quarantine.md).
 - [x] Exercise confirmed quarantine and restore through the packaged UI with generated files, including restart, cancellation, conflict refusal, original/payload/manifest hashes and repeat restore. See [explicit recovery UI acceptance](windows-recovery-acceptance.md).
 - [ ] Expand release testing for real permission configurations, disconnected drives, power loss and storage failures. Recycle-bin integration remains optional follow-up to the implemented quarantine path.
+- [x] Validate isolated same-user NTFS listing denial and exclusive file sharing through the packaged scan UI, including exact skipped counts, healthy results, persistent/cleared warnings and permission restoration after normal failure. See [permission acceptance](windows-permission-acceptance.md). Broader accounts/storage/recovery-write cases remain open.
 
 ## Matching and file-system resilience
 

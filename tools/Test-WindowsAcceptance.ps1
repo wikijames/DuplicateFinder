@@ -1,7 +1,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$ZipPath,
     [ValidateRange(1, 5)][int]$Repetitions = 3,
-    [switch]$IncludeRecoveryRoundTrip
+    [switch]$IncludeRecoveryRoundTrip,
+    [switch]$IncludePermissionChecks
 )
 # Execute only candidates built from reviewed DuplicateFinder source.
 # Windows PowerShell 5.1 compatible; this runner does not invoke the SDK.
@@ -21,6 +22,7 @@ $variables = @('DOTNET_ROOT', 'DOTNET_ROOT_X64', 'DOTNET_ROOT_X86', 'DOTNET_MULT
 $previous = @{}
 $runs = New-Object 'System.Collections.Generic.List[object]'
 $recovery = [pscustomobject]@{ Requested = [bool]$IncludeRecoveryRoundTrip; Passed = $null; FailureType = $null; ReportSHA256 = $null }
+$permission = [pscustomobject]@{ Requested = [bool]$IncludePermissionChecks; Passed = $null; FailureType = $null; ReportSHA256 = $null }
 try {
     foreach ($name in $variables) {
         $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -61,14 +63,28 @@ try {
         }
         catch { $recovery.Passed = $false; $recovery.FailureType = $_.Exception.GetType().Name }
     }
+    if ($IncludePermissionChecks) {
+        Write-Host 'Running explicit NTFS permission checks with a new generated fixture...'
+        try {
+            $result = & (Join-Path $PSScriptRoot 'Test-WindowsPermissionUi.ps1') -ZipPath $zip
+            if (!$result.PermissionChecksPassed -or $result.SourceCommit -ne $verified.SourceCommit) {
+                throw 'Permission acceptance did not return matching candidate evidence.'
+            }
+            $permission.Passed = $true
+            $permission.ReportSHA256 = (Get-FileHash -LiteralPath $result.ReportPath -Algorithm SHA256).Hash
+        }
+        catch { $permission.Passed = $false; $permission.FailureType = $_.Exception.GetType().Name }
+    }
 }
 finally {
     foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
 }
 $passed = $runs.Count -eq $Repetitions -and @($runs | Where-Object { !$_.Passed }).Count -eq 0
 if ($IncludeRecoveryRoundTrip -and !$recovery.Passed) { $passed = $false }
+if ($IncludePermissionChecks -and !$permission.Passed) { $passed = $false }
 $harnessFiles = @('Test-WindowsAcceptance.ps1', 'Test-WindowsPortable.ps1', 'Test-WindowsReviewUi.ps1')
 if ($IncludeRecoveryRoundTrip) { $harnessFiles += 'Test-WindowsRecoveryUi.ps1' }
+if ($IncludePermissionChecks) { $harnessFiles += 'Test-WindowsPermissionUi.ps1' }
 $harness = $harnessFiles | ForEach-Object {
     [pscustomobject]@{ File = $_; SHA256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash }
 }
@@ -82,6 +98,7 @@ $report = [pscustomobject]@{
     CleanMachineValidated = $false
     Runs = $runs.ToArray()
     RecoveryRoundTrip = $recovery
+    PermissionChecks = $permission
     RemainingManualGates = @('Separate clean Windows machine without SDK', 'Narrator and high contrast',
         '125-200 percent display scaling', 'Native Explorer folder drag/drop', 'Real storage and permission failure matrix',
         'Physical SSD/HDD performance', 'Historical intermittent scan IO failure investigation')
