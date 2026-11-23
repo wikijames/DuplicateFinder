@@ -61,7 +61,7 @@ $report = [pscustomobject]@{
     SourceCommit = $verified.SourceCommit; PackageSHA256 = (Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash
     VerifiedFiles = $verified.VerifiedFiles; Repetitions = $Repetitions; Passed = $passed
     Harness = @($harness); WindowsBuild = [string]$windows.CurrentBuildNumber; WindowsUpdateRevision = $windows.UBR
-    RuntimeDiscoveryDisabledInChildEnvironment = $true
+    RuntimeDiscoveryEnvironmentOverridden = $true
     CleanMachineValidated = $false
     Runs = $runs.ToArray()
     RemainingManualGates = @('Separate clean Windows machine without SDK', 'Narrator and high contrast',
