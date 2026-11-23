@@ -24,6 +24,8 @@ The extraction, generated fixtures and empty-runtime folder are retained. By def
 
 The default command remains cancellation-only. For explicit confirmed quarantine/restore using **only a newly generated fixture**, add `-IncludeRecoveryRoundTrip`; see [the recovery UI check and safety boundary](windows-recovery-acceptance.md). The separate recovery result is recorded in the acceptance report and a failure fails the overall run. No permanent deletion is confirmed.
 
+For real NTFS listing-denial and exclusive-file-sharing checks in an isolated generated fixture, add `-IncludePermissionChecks`; see [permission scope and restoration](windows-permission-acceptance.md). Original fixture permissions are restored and verified, and the optional result is linked by hash. Default acceptance invokes neither permission changes nor confirmed recovery.
+
 ## Manual release acceptance matrix
 
 Record **Pass**, **Fail** or **Not tested**, candidate commit/hash, Windows build and relevant display/storage configuration. Use generated/copied fixtures only and retain recovery batches. Do not collect personal paths or reset global security/display settings through automation.
