@@ -20,7 +20,9 @@ The runner:
 4. Records elapsed time, app CPU time and process-lifetime peak working set for each successful repetition. These are observations of the whole UI smoke workload, not scan throughput, memory-retention bounds or a benchmark comparison.
 5. Writes `local-only/acceptance/<run>/acceptance-report.json` with source commit, ZIP hash, harness hashes, Windows build, per-run status, metrics and explicit remaining gates. It stores no absolute paths, machine/user names, file contents, exception messages or stack traces. Failures retain only their exception type, cause a failed result and are not treated as successful retries. All requested repetitions run so intermittency remains visible.
 
-The extraction, generated fixtures and empty-runtime folder are retained. The runner never performs confirmed cleanup. A failed report still needs investigation using a synthetic reproduction. Environment isolation and loading the bundled runtime are useful evidence; they do **not** prove absence of installed SDKs or unrelated native/graphics dependencies on the test machine.
+The extraction, generated fixtures and empty-runtime folder are retained. By default the runner performs no confirmed cleanup. A failed report still needs investigation using a synthetic reproduction. Environment isolation and loading the bundled runtime are useful evidence; they do **not** prove absence of installed SDKs or unrelated native/graphics dependencies on the test machine.
+
+The default command remains cancellation-only. For explicit confirmed quarantine/restore using **only a newly generated fixture**, add `-IncludeRecoveryRoundTrip`; see [the recovery UI check and safety boundary](windows-recovery-acceptance.md). The separate recovery result is recorded in the acceptance report and a failure fails the overall run. No permanent deletion is confirmed.
 
 ## Manual release acceptance matrix
 

@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ZipPath,
-    [ValidateRange(1, 5)][int]$Repetitions = 3
+    [ValidateRange(1, 5)][int]$Repetitions = 3,
+    [switch]$IncludeRecoveryRoundTrip
 )
 # Execute only candidates built from reviewed DuplicateFinder source.
 # Windows PowerShell 5.1 compatible; this runner does not invoke the SDK.
@@ -19,6 +20,7 @@ $reportPath = Join-Path $runRoot 'acceptance-report.json'
 $variables = @('DOTNET_ROOT', 'DOTNET_ROOT_X64', 'DOTNET_ROOT_X86', 'DOTNET_MULTILEVEL_LOOKUP')
 $previous = @{}
 $runs = New-Object 'System.Collections.Generic.List[object]'
+$recovery = [pscustomobject]@{ Requested = [bool]$IncludeRecoveryRoundTrip; Passed = $null; FailureType = $null; ReportSHA256 = $null }
 try {
     foreach ($name in $variables) {
         $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -47,12 +49,27 @@ try {
             Write-Host "Acceptance iteration $iteration failed; sanitized status will be retained."
         }
     }
+    if ($IncludeRecoveryRoundTrip) {
+        Write-Host 'Running explicit quarantine/restore acceptance with a new generated fixture...'
+        try {
+            $result = & (Join-Path $PSScriptRoot 'Test-WindowsRecoveryUi.ps1') -ZipPath $zip
+            if (!$result.RecoveryChecksPassed -or $result.SourceCommit -ne $verified.SourceCommit) {
+                throw 'Recovery acceptance did not return matching candidate evidence.'
+            }
+            $recovery.Passed = $true
+            $recovery.ReportSHA256 = (Get-FileHash -LiteralPath $result.ReportPath -Algorithm SHA256).Hash
+        }
+        catch { $recovery.Passed = $false; $recovery.FailureType = $_.Exception.GetType().Name }
+    }
 }
 finally {
     foreach ($name in $previous.Keys) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') }
 }
 $passed = $runs.Count -eq $Repetitions -and @($runs | Where-Object { !$_.Passed }).Count -eq 0
-$harness = @('Test-WindowsAcceptance.ps1', 'Test-WindowsPortable.ps1', 'Test-WindowsReviewUi.ps1') | ForEach-Object {
+if ($IncludeRecoveryRoundTrip -and !$recovery.Passed) { $passed = $false }
+$harnessFiles = @('Test-WindowsAcceptance.ps1', 'Test-WindowsPortable.ps1', 'Test-WindowsReviewUi.ps1')
+if ($IncludeRecoveryRoundTrip) { $harnessFiles += 'Test-WindowsRecoveryUi.ps1' }
+$harness = $harnessFiles | ForEach-Object {
     [pscustomobject]@{ File = $_; SHA256 = (Get-FileHash -LiteralPath (Join-Path $PSScriptRoot $_) -Algorithm SHA256).Hash }
 }
 $windows = Get-ItemProperty -LiteralPath 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion'
@@ -64,6 +81,7 @@ $report = [pscustomobject]@{
     RuntimeDiscoveryEnvironmentOverridden = $true
     CleanMachineValidated = $false
     Runs = $runs.ToArray()
+    RecoveryRoundTrip = $recovery
     RemainingManualGates = @('Separate clean Windows machine without SDK', 'Narrator and high contrast',
         '125-200 percent display scaling', 'Native Explorer folder drag/drop', 'Real storage and permission failure matrix',
         'Physical SSD/HDD performance', 'Historical intermittent scan IO failure investigation')
