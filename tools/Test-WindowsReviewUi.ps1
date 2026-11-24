@@ -3,6 +3,25 @@ param([string]$ExecutablePath, [switch]$PassThru)
 # Run after a Windows x64 Release build. Uses only a new app process and generated fixtures.
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName UIAutomationClient, UIAutomationTypes
+if (-not ('SyntheticReviewKeyboard' -as [type])) {
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class SyntheticReviewKeyboard {
+    [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr window);
+    [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr window, out uint process);
+    public static bool OwnsForeground(int process) {
+        uint owner; GetWindowThreadProcessId(GetForegroundWindow(), out owner);
+        return owner == process;
+    }
+    public static bool IsOwned(IntPtr window, int process) {
+        uint owner; GetWindowThreadProcessId(window, out owner);
+        return window != IntPtr.Zero && owner == process;
+    }
+}
+'@
+}
 if (-not ('SyntheticReviewLinks' -as [type])) {
 Add-Type @'
 using System;
@@ -29,6 +48,8 @@ $elapsed = [Diagnostics.Stopwatch]::StartNew()
 $testProcess = Start-Process -FilePath $executable -PassThru -WindowStyle Normal
 $desktop = [Windows.Automation.AutomationElement]::RootElement
 $script:reviewWindow = $null
+$uiChecksCompleted = $false
+$foregroundActivations = 0
 
 function Wait-Until([scriptblock]$Predicate, [string]$Message) {
     for ($attempt = 0; $attempt -lt 200; $attempt++) {
@@ -36,6 +57,32 @@ function Wait-Until([scriptblock]$Predicate, [string]$Message) {
         Start-Sleep -Milliseconds 100
     }
     throw $Message
+}
+function Send-ReviewKeys([string]$Value) {
+    if (![SyntheticReviewKeyboard]::OwnsForeground($testProcess.Id)) {
+        $target = $script:reviewWindow
+        $windows = $target.FindAll([Windows.Automation.TreeScope]::Descendants,
+            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::Window))
+        foreach ($candidate in $windows) {
+            if ($candidate.Current.IsEnabled -and !$candidate.Current.IsOffscreen -and
+                $candidate.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Current.IsModal) { $target = $candidate }
+        }
+        $handle = [IntPtr]([long]$target.Current.NativeWindowHandle)
+        if (![SyntheticReviewKeyboard]::IsOwned($handle, $testProcess.Id)) { throw 'Cannot safely target the test app keyboard window.' }
+        $script:foregroundActivations++
+        [SyntheticReviewKeyboard]::SetForegroundWindow($handle) | Out-Null
+        # Give the operator time to activate this test window if Windows refuses
+        # the request. Never change foreground-lock policy or type into another app.
+        for ($attempt = 0; $attempt -lt 100 -and ![SyntheticReviewKeyboard]::OwnsForeground($testProcess.Id); $attempt++) {
+            Start-Sleep -Milliseconds 100
+        }
+        if (![SyntheticReviewKeyboard]::OwnsForeground($testProcess.Id)) {
+            $failure = New-Object InvalidOperationException 'The interactive desktop did not grant foreground to the test app.'
+            $failure.Data['ReviewFailureKind'] = 'ForegroundUnavailable'
+            throw $failure
+        }
+    }
+    $keys.SendKeys($Value)
 }
 function Find-Control([string]$Id) {
     $control = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
@@ -182,37 +229,37 @@ try {
         Start-Sleep -Milliseconds 150
         if ((Find-Control ReviewRecoveryBatchButton).Current.BoundingRectangle.Bottom -gt $batchDialog.Current.BoundingRectangle.Bottom) { throw 'Undersize request hid the recovery review action.' }
         (Find-Control CancelRecoveryBatchButton).SetFocus()
-        $keys.SendKeys('{TAB}')
+        Send-ReviewKeys '{TAB}'
         Start-Sleep -Milliseconds 100
         if (!(Find-Control ReviewRecoveryBatchButton).Current.HasKeyboardFocus) { throw 'Tab did not reach recovery review.' }
-        $keys.SendKeys('+{TAB}')
+        Send-ReviewKeys '+{TAB}'
         Start-Sleep -Milliseconds 100
         if (!(Find-Control CancelRecoveryBatchButton).Current.HasKeyboardFocus) { throw 'Shift+Tab did not return to recovery Cancel.' }
-        $keys.SendKeys('+{TAB}')
+        Send-ReviewKeys '+{TAB}'
         Start-Sleep -Milliseconds 100
         $browse = $batchDialog.FindFirst([Windows.Automation.TreeScope]::Descendants,
             [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Select a quarantine batch folder'))
         if ($null -eq $browse -or !$browse.Current.HasKeyboardFocus) { throw 'Recovery browse action has no contextual accessible name or keyboard focus.' }
-        $keys.SendKeys('+{TAB}')
+        Send-ReviewKeys '+{TAB}'
         Start-Sleep -Milliseconds 100
         if (!(Find-Control RestoreBatchPathBox).Current.HasKeyboardFocus) { throw 'Recovery batch path is not in the keyboard sequence.' }
-        $keys.SendKeys('{ESC}')
+        Send-ReviewKeys '{ESC}'
         Start-Sleep -Milliseconds 150
         if (!(Find-Control RestoreBatchButton).Current.HasKeyboardFocus) { throw 'Escape did not restore focus to Restore batch.' }
         Invoke-Control RestoreBatchButton
         (Find-Control CancelRecoveryBatchButton).SetFocus()
-        $keys.SendKeys('{ENTER}')
+        Send-ReviewKeys '{ENTER}'
         Start-Sleep -Milliseconds 150
         if (!(Find-Control RestoreBatchButton).Current.HasKeyboardFocus) { throw 'Default Cancel did not close batch selection safely.' }
     }
     (Find-Control RootPathBox).SetFocus()
-    $keys.SendKeys('^f')
+    Send-ReviewKeys '^f'
     Start-Sleep -Milliseconds 150
     if (!(Find-Control ResultsSearchBox).Current.HasKeyboardFocus) { throw 'Ctrl+F did not focus search.' }
-    $keys.SendKeys('{TAB}')
+    Send-ReviewKeys '{TAB}'
     Start-Sleep -Milliseconds 100
     if (!(Find-Control ResultsSortBox).Current.HasKeyboardFocus) { throw 'Tab did not move from search to sort.' }
-    $keys.SendKeys('+{TAB}')
+    Send-ReviewKeys '+{TAB}'
     Start-Sleep -Milliseconds 100
     if (!(Find-Control ResultsSearchBox).Current.HasKeyboardFocus) { throw 'Shift+Tab did not return to search.' }
 
@@ -255,10 +302,10 @@ try {
         if ($null -eq $header) { throw 'Diagnostics expander header is not keyboard accessible.' }
         $header.GetCurrentPattern([Windows.Automation.ScrollItemPattern]::Pattern).ScrollIntoView()
         $header.SetFocus()
-        $keys.SendKeys(' ')
+        Send-ReviewKeys ' '
         Start-Sleep -Milliseconds 100
         if ($expander.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Expanded) { throw 'Space did not expand diagnostics details.' }
-        $keys.SendKeys(' ')
+        Send-ReviewKeys ' '
         Start-Sleep -Milliseconds 100
         if ($expander.GetCurrentPattern([Windows.Automation.ExpandCollapsePattern]::Pattern).Current.ExpandCollapseState -ne [Windows.Automation.ExpandCollapseState]::Collapsed) { throw 'Space did not collapse diagnostics details.' }
     }
@@ -348,6 +395,7 @@ try {
         if ($control.Current.IsOffscreen -or $control.Current.BoundingRectangle.Height -lt 25) { throw 'Persistent notice clipped the review workspace.' }
     }
     'PASS: keep choice, preview-only selection, both cancellations, dialog focus/resizing, recovery selector bounds/keyboard/cancellation, settings, diagnostics, search safety, themes, keyboard traversal, persistent warning and 301 synthetic groups.'
+    $uiChecksCompleted = $true
     if ($PassThru) {
         $testProcess.Refresh()
         [pscustomobject]@{
@@ -356,14 +404,30 @@ try {
             ElapsedSeconds = [Math]::Round($elapsed.Elapsed.TotalSeconds, 2)
             ProcessLifetimePeakWorkingSetBytes = $testProcess.PeakWorkingSet64
             ProcessCpuMilliseconds = [Math]::Round($testProcess.TotalProcessorTime.TotalMilliseconds, 2)
+            ForegroundActivationRequests = $foregroundActivations
         }
     }
 }
 finally {
-    if ($null -ne $script:reviewWindow) {
-        $script:reviewWindow.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+    $forcedTermination = $false
+    try {
+        try {
+            if ($null -ne $script:reviewWindow) {
+                $script:reviewWindow.GetCurrentPattern([Windows.Automation.WindowPattern]::Pattern).Close()
+            }
+        }
+        catch { } # The failing check may already have closed or invalidated its window.
+        if (!$testProcess.HasExited -and !$testProcess.WaitForExit(3000)) {
+            $testProcess.CloseMainWindow() | Out-Null
+            if (!$testProcess.WaitForExit(3000)) {
+                # Only this harness's process; retain every generated fixture.
+                $forcedTermination = $true
+                $testProcess.Kill()
+                $testProcess.WaitForExit(3000) | Out-Null
+            }
+        }
     }
-    elseif (!$testProcess.HasExited) { $testProcess.CloseMainWindow() | Out-Null }
-    $testProcess.Dispose()
+    finally { $testProcess.Dispose() }
+    if ($forcedTermination -and $uiChecksCompleted) { throw 'The test app did not exit normally after completed UI checks.' }
     # Deliberately retain generated fixtures for inspection; never remove user data.
 }

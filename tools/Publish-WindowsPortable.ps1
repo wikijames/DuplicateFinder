@@ -28,7 +28,7 @@ Push-Location $repoRoot
 try {
     $commit = (& git rev-parse HEAD).Trim()
     if ($LASTEXITCODE -ne 0 -or $commit -notmatch '^[a-f0-9]{40}$') { throw 'A Git source commit is required.' }
-    $dirty = @(& git status --porcelain -- .gitattributes src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 tools/Test-WindowsRuntimeSupport.ps1 tools/Test-EmbeddedFontNotices.ps1 docs/licenses docs/windows-portable-guide.md).Count -gt 0
+    $dirty = @(& git status --porcelain -- .gitattributes src tools/Publish-WindowsPortable.ps1 tools/Write-DependencyInventory.ps1 tools/Test-WindowsRuntimeSupport.ps1 tools/Test-EmbeddedFontNotices.ps1 docs/licenses docs/windows-portable-guide.md docs/manual-acceptance-results-template.md).Count -gt 0
     $name = 'DuplicateFinder-' + $commit.Substring(0, 7) + '-win-x64'
     $runRoot = Join-Path $repoRoot ('local-only/packages/' + $commit.Substring(0, 7) + '-' + [guid]::NewGuid().ToString('N').Substring(0, 8))
     if (Test-Path -LiteralPath $runRoot) { throw 'The package output already exists. Existing outputs are never removed or overwritten.' }
@@ -80,7 +80,8 @@ try {
         throw 'The expected self-contained runtime is missing.'
     }
     Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/windows-portable-guide.md') -Destination (Join-Path $publish 'USER-GUIDE.md')
-    $start = "DuplicateFinder - unsigned Windows x64 private test candidate`r`n`r`nDistribution policy: private testing only. Public licensing and signing are deferred.`r`nExtract the entire ZIP, then run DuplicateFinder.Desktop.exe.`r`nThe .NET runtime is included. Keep all files together.`r`nStart with copied test files and use quarantine for cleanup.`r`nRead USER-GUIDE.md and the package/review reports before sharing.`r`nNo installation, updater, public release approval or signing is implied.`r`n"
+    Copy-Item -LiteralPath (Join-Path $repoRoot 'docs/manual-acceptance-results-template.md') -Destination (Join-Path $publish 'MANUAL-ACCEPTANCE.md')
+    $start = "DuplicateFinder - unsigned Windows x64 private test candidate`r`n`r`nDistribution policy: private testing only. Public licensing and signing are deferred.`r`nExtract the entire ZIP, then run DuplicateFinder.Desktop.exe.`r`nThe .NET runtime is included. Keep all files together.`r`nStart with copied test files and use quarantine for cleanup.`r`nRead USER-GUIDE.md and the package/review reports before sharing.`r`nCopy MANUAL-ACCEPTANCE.md outside this application folder before entering test results.`r`nNo installation, updater, public release approval or signing is implied.`r`n"
     [IO.File]::WriteAllText((Join-Path $publish 'START-HERE.txt'), $start)
     $packageInfo = [pscustomobject]@{
         Schema = 1; SourceCommit = $commit; PackagingInputsModified = $dirty
