@@ -34,6 +34,16 @@ public partial class MainWindow
     {
         ManageFoldersButton.Content = $"Folders ({_scanFolders.Folders.Count})";
         ToolTip.SetTip(ManageFoldersButton, string.Join(Environment.NewLine, _scanFolders.Folders));
+        SelectedFoldersText.Text = _scanFolders.Folders.Count switch
+        {
+            0 => "No folders selected. Add a folder or drive.",
+            1 => $"Selected to scan: {_scanFolders.Folders[0]}",
+            _ => $"Selected to scan: {_scanFolders.Folders[0]} (+{_scanFolders.Folders.Count - 1} more; see Folders)"
+        };
+        ToolTip.SetTip(SelectedFoldersText, string.Join(Environment.NewLine, _scanFolders.Folders));
+        RootPathBox.PlaceholderText = _scanFolders.Folders.Count == 0
+            ? "Enter a folder or drive path to add"
+            : "Add another folder or drive path";
     }
 
     private void AddFolderButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

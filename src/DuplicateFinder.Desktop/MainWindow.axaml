@@ -26,14 +26,14 @@
         </Grid>
 
         <Border Grid.Row="1" Name="ScanSetupPanel" Background="{DynamicResource WorkspacePanel}" BorderBrush="{DynamicResource WorkspaceBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
-            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                     <TextBlock Text="Scan folders" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Name="ManageFoldersButton" Content="Folders (0)" Click="ManageFoldersButton_Click" />
                     <Button Grid.Column="2" Name="ScanSettingsButton" Content="Scan settings" Click="ScanSettingsButton_Click" />
                 </Grid>
                 <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder path or drop folders here" VerticalContentAlignment="Center"
+                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder or drive path to add" VerticalContentAlignment="Center"
                              AutomationProperties.Name="Folder to add" TextChanged="ScanSetup_Changed" />
                     <Button Grid.Column="1" Name="AddFolderButton" Content="Add" Click="AddFolderButton_Click" />
                     <Button Grid.Column="2" Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
@@ -41,7 +41,11 @@
                             Background="{DynamicResource WorkspaceAccent}" Foreground="{DynamicResource WorkspaceOnAccent}" FontWeight="SemiBold" />
                     <Button Grid.Column="4" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" ToolTip.Tip="Cancel the scan (Escape)" AutomationProperties.Name="Cancel scan" />
                 </Grid>
-                <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
+                <TextBlock Grid.Row="2" Name="SelectedFoldersText" Classes="muted" FontSize="13"
+                           Text="No folders selected. Add a folder or drive."
+                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.LiveSetting="Polite" />
+                <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
                     <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1" Name="FileTypeBox" HorizontalAlignment="Stretch"
                               AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
