@@ -18,7 +18,7 @@ The detailed evidence and scope are in [Windows acceptance](windows-acceptance.m
 
 | Category | Current status | Next action |
 | --- | --- | --- |
-| Hands-on accessibility/display | Manual rows unverified; latest fresh keyboard run blocked by foreground permission | Activate the test app for keyboard validation and fill the manual record for Narrator, contrast themes, offered scaling values and native Explorer drop |
+| Hands-on accessibility/display | Scripted keyboard rerun passed; hands-on accessibility/display rows remain unverified | Fill the manual record for Narrator, contrast themes, offered scaling values and native Explorer drop |
 | Separate clean machine | Not tested; only development laptop available | Retain as an open gate until an appropriate environment is available |
 | Broader storage/accounts/recovery-write failures | Partially covered by isolated NTFS/read-sharing and synthetic service tests | Collect controlled evidence on the intended configurations |
 | Long-session memory and physical SSD/HDD measurements | Initial synthetic metrics exist; broader measurements open | Use repeatable workloads and record conditions rather than assuming a speedup |
@@ -53,6 +53,12 @@ Merged baseline `889e330` built Release with zero warnings/errors and passed all
 
 Candidate `5bcefdd` was built from committed packaging inputs with private-testing metadata. Its ZIP SHA-256 is `CE39203524956DDD4904470E4585A92F2038794549C1550B41284173C661916C`. Archive/template checks passed, including the exact bundled manual record and its 19 unverified rows. Both the seven-stage synthetic recovery check and five-scenario NTFS permission check passed on this candidate, with fixture permissions restored.
 
-The first three fresh general-UI repetitions failed and their reports were retained. A diagnostic rerun pinpointed the recovery-selector Tab assertion; the subsequent foreground guard established that Windows would not grant the test app foreground input. Fresh physical-keyboard verification therefore remains **blocked**, and the complete acceptance result is not marked passed. The application source is unchanged; no root cause is attributed to an application defect from this environment result.
+The first three fresh general-UI repetitions failed and their reports were retained. A diagnostic rerun pinpointed the recovery-selector Tab assertion; the subsequent foreground guard established that Windows would not grant the test app foreground input. Those earlier runs remain failed/blocked records. The application source is unchanged; no root cause is attributed to an application defect from this environment result.
 
-This review also fixed the test harness leaving app processes behind after failed checks, added safe foreground ownership checks and added path-free numeric failure frames. The remaining keyboard rerun needs the operator to activate the test window. No Narrator/contrast/scaling result has been supplied, and no manual row is automatically approved. These findings stay in this consolidation PR rather than being presented as completed release certification.
+This review also fixed the test harness leaving app processes behind after failed checks, added safe foreground ownership checks and added path-free numeric failure frames. No Narrator/contrast/scaling result has been supplied, and no manual row is automatically approved. These findings stay in this consolidation PR rather than being presented as completed release certification.
+
+### Foreground blocker cleared — 24 November 2026
+
+With the operator keeping the test app in front, one fresh complete general-UI repetition passed on the same `5bcefdd` candidate. The result recorded `Passed: true`, `KeyboardForegroundBlocked: false`, the bundled runtime verified and zero programmatic foreground activation requests. It covered the existing keyboard/focus/compact-dialog, theme, search, image/text preview and 301-group checks. The sanitized report SHA-256 is `E4EE463B15F09FBFF21628EEF1E6362012AFFFFF378B07F17055FA2282F0D154`.
+
+This clears the current foreground-validation blocker with an observed successful rerun; it does not rewrite earlier failed reports or claim that three new repetitions passed. The earlier recovery and NTFS-permission results remain evidence for this same candidate. Clean-machine, Narrator, contrast-theme, wider scaling/storage and public-release gates remain open.
