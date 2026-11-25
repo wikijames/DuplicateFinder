@@ -1,7 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:DuplicateFinder.Desktop"
-        x:Class="DuplicateFinder.Desktop.MainWindow"
+        x:Class="DuplicateFinder.Desktop.MainWindow" x:CompileBindings="True"
         Title="DuplicateFinder"
         Width="1120" Height="740" MinWidth="920" MinHeight="660"
         Background="{DynamicResource WorkspaceBackground}" Foreground="{DynamicResource WorkspaceForeground}">
@@ -117,7 +117,7 @@
                           AutomationProperties.Name="Resize group and file panels" />
             <Border Grid.Column="2" Background="{DynamicResource WorkspacePanel}" BorderBrush="{DynamicResource WorkspaceBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
                 <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="6">
-                    <TextBlock Name="SelectedGroupTitle" Text="Choose a duplicate group" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                    <TextBlock Name="SelectedGroupTitle" Text="All duplicate groups" FontSize="18" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                     <Grid Grid.Row="1" ColumnDefinitions="Auto,*" ColumnSpacing="12">
                         <TextBlock Text="File to keep" FontWeight="SemiBold" VerticalAlignment="Center" />
                         <ComboBox Grid.Column="1" Name="KeepFileComboBox" HorizontalAlignment="Stretch" IsEnabled="False"
@@ -130,28 +130,50 @@
                         </ComboBox>
                     </Grid>
                     <ListBox Grid.Row="2" Name="GroupFilesList" Background="Transparent" SelectionMode="Single"
-                             ToolTip.Tip="Select a row to preview. Use File to keep above to protect exactly one file."
-                             AutomationProperties.Name="Files in selected group; row selection is for preview">
-                        <ListBox.ItemTemplate>
-                            <DataTemplate x:DataType="local:FileReviewRow">
-                                <StackPanel Spacing="6" AutomationProperties.Name="{Binding AccessibleName}">
+                             AutomationProperties.Name="All duplicate groups and files; cleanup applies only to the active group">
+                        <ListBox.ItemsPanel>
+                            <ItemsPanelTemplate><VirtualizingStackPanel /></ItemsPanelTemplate>
+                        </ListBox.ItemsPanel>
+                        <ListBox.DataTemplates>
+                            <DataTemplate DataType="local:ReviewGroupHeader" x:DataType="local:ReviewGroupHeader">
+                                <Border Background="{DynamicResource WorkspaceInset}" BorderBrush="{DynamicResource WorkspaceBorder}"
+                                        BorderThickness="0,1,0,1" Padding="10,8" Margin="0,6,0,0">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="12" TextWrapping="Wrap" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Content="Review group" Click="ReviewGroupButton_Click"
+                                                AutomationProperties.AutomationId="ReviewGroupButton" ToolTip.Tip="Make this group active for the keep selector and removal review." />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                            <DataTemplate DataType="local:FileReviewRow" x:DataType="local:FileReviewRow">
+                                <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12" AutomationProperties.Name="{Binding AccessibleName}">
+                                    <Border Width="64" Height="64" Background="{DynamicResource WorkspaceInset}" CornerRadius="6">
+                                        <TextBlock Text="FILE" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1" Spacing="4">
                                         <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="FileImageLink_Click"
                                                 AutomationProperties.Name="{Binding PreviewAccessibleName}" AutomationProperties.AutomationId="FileImageLink"
                                                 ToolTip.Tip="Compare this image with the other copies. The file to keep stays unchanged.">
                                             <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" TextDecorations="Underline" FontWeight="SemiBold" />
                                         </Button>
-                                        <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="13" />
-                                    </Grid>
-                                    <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="13" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />
-                                    <Border IsVisible="{Binding IsKeep}" Background="{DynamicResource WorkspaceBadge}" CornerRadius="4" Padding="8,3" HorizontalAlignment="Left">
-                                        <TextBlock Text="KEEP · Protected in this group" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="13" FontWeight="SemiBold" />
-                                    </Border>
-                                    <TextBlock IsVisible="{Binding IsRemovalCandidate}" Text="Removal candidate · Requires confirmation" Classes="muted" FontSize="13" TextWrapping="Wrap" />
-                                </StackPanel>
+                                        <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="12" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />
+                                        <Border IsVisible="{Binding IsKeep}" Background="{DynamicResource WorkspaceBadge}" CornerRadius="4" Padding="6,2" HorizontalAlignment="Left">
+                                            <TextBlock Text="KEPT FILE" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="12" FontWeight="SemiBold" />
+                                        </Border>
+                                        <TextBlock IsVisible="{Binding IsRemovalCandidate}" Text="Extra copy ? review before removal" Classes="muted" FontSize="12" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2" Spacing="8" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding Size}" Classes="muted" FontSize="13" HorizontalAlignment="Right" />
+                                        <Button IsVisible="{Binding IsRemovalCandidate}" Content="Keep this file" Click="KeepFileButton_Click" Padding="8,4" MinHeight="30"
+                                                AutomationProperties.Name="{Binding KeepAccessibleName}" AutomationProperties.AutomationId="KeepThisFileButton" />
+                                    </StackPanel>
+                                </Grid>
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
+                        </ListBox.DataTemplates>
                     </ListBox>
                     <Grid Grid.Row="3" ColumnDefinitions="*,Auto" ColumnSpacing="8">
                         <TextBlock Name="ReviewText" Text="No review selected." Classes="muted" FontSize="13" TextWrapping="Wrap" VerticalAlignment="Center" />
@@ -170,7 +192,7 @@
                     <ComboBoxItem Content="Permanently delete" />
                 </ComboBox>
                 <Button Grid.Row="1" Grid.Column="1" Name="RestoreBatchButton" Content="Restore batch" Click="RestoreBatchButton_Click" />
-                <Button Grid.Row="1" Grid.Column="2" Name="CleanupButton" Content="Review removal" Click="CleanupButton_Click" IsEnabled="False"
+                <Button Grid.Row="1" Grid.Column="2" Name="CleanupButton" Content="Review active group" Click="CleanupButton_Click" IsEnabled="False"
                         Background="{DynamicResource WorkspaceDanger}" Foreground="{DynamicResource WorkspaceOnDanger}" />
                 <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Name="RecoveryText" IsVisible="False" Classes="muted" FontSize="12"
                            TextTrimming="CharacterEllipsis" />

@@ -37,16 +37,7 @@ public partial class MainWindow : Window
         ResultsSortBox.SelectedIndex = 0;
         AppearanceBox.ItemsSource = new[] { "System", "Light", "Dark" };
         AppearanceBox.SelectedIndex = 0;
-        GroupFilesList.SelectionChanged += (_, _) =>
-        {
-            var row = GroupFilesList.SelectedItem as FileReviewRow;
-            var image = row is not null && ImageFilePreview.Supports(row.FullPath);
-            PreviewFileButton.Content = image ? "Compare images" : "Preview file";
-            PreviewFileButton.IsVisible = !image && (_workspace.Selection is null
-                || !ImageFilePreview.Supports(_workspace.Selection.Group.FilePaths[0]));
-            AutomationProperties.SetName(PreviewFileButton, image ? "Compare selected duplicate images" : "Preview selected file");
-            PreviewFileButton.IsEnabled = !SetupIsBusy && row is not null;
-        };
+        GroupFilesList.SelectionChanged += GroupedFiles_SelectionChanged;
         KeyDown += (_, e) =>
         {
             if (e.Key == Avalonia.Input.Key.Escape && _scanCancellation is not null)
@@ -196,6 +187,7 @@ public partial class MainWindow : Window
 
     private void KeepFileComboBox_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (_synchronizingResults) return;
         if (_workspace.Selection is null)
         {
             return;
@@ -212,16 +204,8 @@ public partial class MainWindow : Window
 
     private void ResultsList_SelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        var item = ResultsList.SelectedItem as DuplicateGroupItem;
-        _workspace.SelectGroup(item?.Group);
-        KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
-        if (_workspace.Selection is { } selection)
-        {
-            var choices = selection.Group.FilePaths.Select(path => new KeepFileChoice(path)).ToList();
-            KeepFileComboBox.ItemsSource = choices;
-            KeepFileComboBox.SelectedItem = choices.First(choice => choice.FullPath == selection.KeepFilePath);
-        }
-        RefreshReview();
+        if (_synchronizingResults) return;
+        SelectResultGroup((ResultsList.SelectedItem as DuplicateGroupItem)?.Group, scrollToGroup: true);
     }
 
     private async Task TryScanCurrentRootAsync()
@@ -388,10 +372,11 @@ public partial class MainWindow : Window
         AutomationProperties.SetLiveSetting(StatusText, statusMessage == "Scanning..." ? AutomationLiveSetting.Off : AutomationLiveSetting.Polite);
         StatusText.Text = statusMessage;
         _workspace.Clear();
+        _groupedRows = new GroupedReviewRows(Array.Empty<DuplicateGroup>(), group => group.FilePaths[0]);
         VisibleGroupsText.Text = "0 of 0 groups";
         ResultsList.ItemsSource = Array.Empty<DuplicateGroupItem>();
         KeepFileComboBox.ItemsSource = Array.Empty<KeepFileChoice>();
-        GroupFilesList.ItemsSource = Array.Empty<FileReviewRow>();
+        GroupFilesList.ItemsSource = _groupedRows.Rows;
         SelectedGroupTitle.Text = "Choose a duplicate group";
         EmptyResultsText.Text = statusMessage;
         EmptyResultsText.IsVisible = true;
@@ -413,8 +398,8 @@ public partial class MainWindow : Window
         var selection = _workspace.Selection;
         if (selection is null)
         {
-            GroupFilesList.ItemsSource = Array.Empty<FileReviewRow>();
-            SelectedGroupTitle.Text = "Choose a duplicate group";
+            UpdatePreviewAction();
+            SelectedGroupTitle.Text = "All duplicate groups";
             ReviewText.Text = "No review selected.";
             CleanupButton.IsEnabled = false;
             KeepFileComboBox.IsEnabled = false;
@@ -422,10 +407,9 @@ public partial class MainWindow : Window
         }
 
         var busy = _scanCancellation is not null || _cleanupInProgress;
-        SelectedGroupTitle.Text = Path.GetFileName(selection.Group.FilePaths[0]);
-        GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new FileReviewRow(path, selection.Group.SizeBytes,
-            string.Equals(path, selection.KeepFilePath, StringComparison.OrdinalIgnoreCase))).ToList();
-        PreviewFileButton.IsVisible = !ImageFilePreview.Supports(selection.Group.FilePaths[0]);
+        SelectedGroupTitle.Text = "Active group: " + Path.GetFileName(selection.Group.FilePaths[0]);
+        _groupedRows.UpdateKeep(selection.Group, selection.KeepFilePath);
+        UpdatePreviewAction();
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy;
         ReviewText.Text = _workspace.CleanupOperation is null
