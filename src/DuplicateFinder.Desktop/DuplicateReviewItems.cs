@@ -11,6 +11,8 @@ public sealed class DuplicateGroupItem(DuplicateGroup group)
     public string Title => Path.GetFileName(Group.FilePaths[0]);
     public string Summary => $"{Group.FilePaths.Count} files · {DisplayFileSize.Format(Group.SizeBytes)} each";
     public string Reclaimable => $"{DisplayFileSize.Format(Group.ReclaimableBytes)} in extra copies";
+    public bool CanCompareImage => ImageFilePreview.Supports(Group.FilePaths[0]);
+    public string PreviewAccessibleName => $"Compare duplicate images in {Title}, {Group.FilePaths.Count} files";
     public override string ToString() => $"{Title} — {Summary}";
 }
 

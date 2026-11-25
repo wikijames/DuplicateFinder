@@ -42,6 +42,8 @@ public partial class MainWindow : Window
             var row = GroupFilesList.SelectedItem as FileReviewRow;
             var image = row is not null && ImageFilePreview.Supports(row.FullPath);
             PreviewFileButton.Content = image ? "Compare images" : "Preview file";
+            PreviewFileButton.IsVisible = !image && (_workspace.Selection is null
+                || !ImageFilePreview.Supports(_workspace.Selection.Group.FilePaths[0]));
             AutomationProperties.SetName(PreviewFileButton, image ? "Compare selected duplicate images" : "Preview selected file");
             PreviewFileButton.IsEnabled = !SetupIsBusy && row is not null;
         };
@@ -118,6 +120,11 @@ public partial class MainWindow : Window
             _customExtensions = ExtensionsBox.Text ?? string.Empty;
         }
         ExtensionsBox.IsReadOnly = !preset.IsCustom;
+        CustomExtensionsPanel.IsVisible = preset.IsCustom;
+        ToolTip.SetTip(FileTypeBox, preset.IsCustom
+            ? "Choose the extensions to compare below. Matching uses exact file contents."
+            : (string.IsNullOrEmpty(preset.Extensions) ? "All eligible file extensions." : preset.Extensions)
+                + " Exact file contents are compared; similar-looking images are not matched.");
         ExtensionsBox.PlaceholderText = preset.IsCustom ? ".jpg, .pdf, .txt" : "All file extensions";
         ExtensionsBox.Text = preset.IsCustom ? _customExtensions : preset.Extensions;
         InvalidateScanSetup();
@@ -418,6 +425,7 @@ public partial class MainWindow : Window
         SelectedGroupTitle.Text = Path.GetFileName(selection.Group.FilePaths[0]);
         GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new FileReviewRow(path, selection.Group.SizeBytes,
             string.Equals(path, selection.KeepFilePath, StringComparison.OrdinalIgnoreCase))).ToList();
+        PreviewFileButton.IsVisible = !ImageFilePreview.Supports(selection.Group.FilePaths[0]);
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy;
         ReviewText.Text = _workspace.CleanupOperation is null

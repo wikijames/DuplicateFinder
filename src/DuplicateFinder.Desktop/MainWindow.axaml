@@ -26,29 +26,39 @@
         </Grid>
 
         <Border Grid.Row="1" Name="ScanSetupPanel" Background="{DynamicResource WorkspacePanel}" BorderBrush="{DynamicResource WorkspaceBorder}" BorderThickness="1" CornerRadius="10" Padding="12">
-            <Grid RowDefinitions="Auto,Auto,Auto" RowSpacing="6">
+            <Grid RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="6">
                 <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                     <TextBlock Text="Scan folders" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
                     <Button Grid.Column="1" Name="ManageFoldersButton" Content="Folders (0)" Click="ManageFoldersButton_Click" />
                     <Button Grid.Column="2" Name="ScanSettingsButton" Content="Scan settings" Click="ScanSettingsButton_Click" />
                 </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
-                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder path or drop folders here" VerticalContentAlignment="Center"
+                <Grid Grid.Row="1" Name="ScanToolbar" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" SizeChanged="ScanToolbar_SizeChanged">
+                  <Grid Name="FolderEntryPanel" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
+                    <TextBox Name="RootPathBox" PlaceholderText="Enter a folder or drive path to add" VerticalContentAlignment="Center"
                              AutomationProperties.Name="Folder to add" TextChanged="ScanSetup_Changed" />
                     <Button Grid.Column="1" Name="AddFolderButton" Content="Add" Click="AddFolderButton_Click" />
                     <Button Grid.Column="2" Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
-                    <Button Grid.Column="3" Name="ScanButton" Content="Scan folders" Click="ScanButton_Click"
-                            Background="{DynamicResource WorkspaceAccent}" Foreground="{DynamicResource WorkspaceOnAccent}" FontWeight="SemiBold" />
-                    <Button Grid.Column="4" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" ToolTip.Tip="Cancel the scan (Escape)" AutomationProperties.Name="Cancel scan" />
-                </Grid>
-                <Grid Grid.Row="2" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
+                  </Grid>
+                  <StackPanel Grid.Column="1" Name="FileTypePanel" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" Name="FileTypeBox" HorizontalAlignment="Stretch"
-                              AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
-                    <TextBox Grid.Column="2" Name="ExtensionsBox" PlaceholderText="All file extensions" IsReadOnly="True"
+                    <ComboBox Name="FileTypeBox" Width="180" AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Name="ScanActionsPanel" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Name="ScanButton" Content="Scan folders" Click="ScanButton_Click"
+                            Background="{DynamicResource WorkspaceAccent}" Foreground="{DynamicResource WorkspaceOnAccent}" FontWeight="SemiBold" />
+                    <Button Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" ToolTip.Tip="Cancel the scan (Escape)" AutomationProperties.Name="Cancel scan" />
+                  </StackPanel>
+                </Grid>
+                <TextBlock Grid.Row="2" Name="SelectedFoldersText" Classes="muted" FontSize="13"
+                           Text="No folders selected. Add a folder or drive."
+                           TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
+                           AutomationProperties.LiveSetting="Polite" />
+                <Grid Grid.Row="3" Name="CustomExtensionsPanel" IsVisible="False" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" ColumnSpacing="12" RowSpacing="6">
+                    <TextBlock Classes="muted" Text="Extensions" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Name="ExtensionsBox" PlaceholderText="All file extensions" IsReadOnly="True"
                              AutomationProperties.Name="Included file extensions" TextChanged="ScanSetup_Changed" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Classes="muted"
-                               Text="Choose Custom extensions to edit the list. Every category uses exact content matching."
+                    <TextBlock Grid.Row="1" Grid.Column="1" Classes="muted"
+                               Text="Enter extensions separated by commas. Every category uses exact content matching."
                                TextWrapping="Wrap" FontSize="13" />
                 </Grid>
             </Grid>
@@ -86,7 +96,12 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="local:DuplicateGroupItem">
                                 <StackPanel Spacing="5">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                                    <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                                    <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="GroupImageLink_Click"
+                                            AutomationProperties.Name="{Binding PreviewAccessibleName}" AutomationProperties.AutomationId="GroupImageLink"
+                                            ToolTip.Tip="Compare images in this group. The file to keep stays unchanged.">
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" TextDecorations="Underline" FontWeight="SemiBold" />
+                                    </Button>
                                     <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="13" />
                                     <TextBlock Text="{Binding Reclaimable}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="13" />
                                 </StackPanel>
@@ -121,7 +136,12 @@
                             <DataTemplate x:DataType="local:FileReviewRow">
                                 <StackPanel Spacing="6" AutomationProperties.Name="{Binding AccessibleName}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="FileImageLink_Click"
+                                                AutomationProperties.Name="{Binding PreviewAccessibleName}" AutomationProperties.AutomationId="FileImageLink"
+                                                ToolTip.Tip="Compare this image with the other copies. The file to keep stays unchanged.">
+                                            <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" TextDecorations="Underline" FontWeight="SemiBold" />
+                                        </Button>
                                         <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="13" />
                                     </Grid>
                                     <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="13" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />

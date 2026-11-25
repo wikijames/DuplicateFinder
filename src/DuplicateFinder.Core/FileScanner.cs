@@ -4,13 +4,16 @@ public sealed class FileScanner
 {
     private readonly Func<string, string, EnumerationOptions, IEnumerable<string>> _enumerateFiles = Directory.EnumerateFiles;
     private readonly Func<string, string, EnumerationOptions, IEnumerable<string>> _enumerateDirectories = Directory.EnumerateDirectories;
+    private readonly Func<string, FileAttributes> _readAttributes = File.GetAttributes;
 
     public FileScanner() { }
     internal FileScanner(Func<string, string, EnumerationOptions, IEnumerable<string>> enumerateFiles,
-        Func<string, string, EnumerationOptions, IEnumerable<string>>? enumerateDirectories = null)
+        Func<string, string, EnumerationOptions, IEnumerable<string>>? enumerateDirectories = null,
+        Func<string, FileAttributes>? readAttributes = null)
     {
         _enumerateFiles = enumerateFiles;
         _enumerateDirectories = enumerateDirectories ?? Directory.EnumerateDirectories;
+        _readAttributes = readAttributes ?? File.GetAttributes;
     }
     public IEnumerable<string> EnumerateFiles(string rootPath, string searchPattern = "*", bool includeHidden = false, CancellationToken cancellationToken = default)
     {
@@ -97,6 +100,12 @@ public sealed class FileScanner
 
     private IEnumerable<string> EnumerateCandidatePaths(string rootPath, string searchPattern, bool includeHidden, HashSet<string>? exclusionNames, HashSet<string>? excludedPathSegments, HashSet<string>? excludedFileNames, EnumerationOptions options, ScanDiagnostics diagnostics, CancellationToken cancellationToken)
     {
+        // Windows marks ordinary volume roots Hidden + System. Selecting a drive
+        // must not exclude the root itself; child attribute filters still apply.
+        var normalizedRoot = Path.GetFullPath(rootPath);
+        var selectedDriveRoot = OperatingSystem.IsWindows() && normalizedRoot.Length == 3
+            && char.IsAsciiLetter(normalizedRoot[0]) && normalizedRoot[1] == ':'
+            && Path.EndsInDirectorySeparator(normalizedRoot);
         var directories = new Stack<string>();
         directories.Push(rootPath);
 
@@ -113,7 +122,8 @@ public sealed class FileScanner
                 continue;
             }
 
-            if (!includeHidden && IsHidden(currentDirectory, directoryAttributes))
+            if (!includeHidden && IsHidden(currentDirectory, directoryAttributes)
+                && !(selectedDriveRoot && string.Equals(currentDirectory, rootPath, StringComparison.OrdinalIgnoreCase)))
             {
                 continue;
             }
@@ -294,11 +304,11 @@ public sealed class FileScanner
         return false;
     }
 
-    private static bool TryGetAttributes(string path, bool directory, ScanDiagnostics diagnostics, out FileAttributes attributes)
+    private bool TryGetAttributes(string path, bool directory, ScanDiagnostics diagnostics, out FileAttributes attributes)
     {
         try
         {
-            attributes = File.GetAttributes(path);
+            attributes = _readAttributes(path);
             return true;
         }
         catch (Exception exception) when (ScanDiagnostics.IsRecoverable(exception))

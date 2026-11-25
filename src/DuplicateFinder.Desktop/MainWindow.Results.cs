@@ -46,6 +46,32 @@ public partial class MainWindow
     private async void PreviewFileButton_Click(object? sender, RoutedEventArgs e)
     {
         if (SetupIsBusy || GroupFilesList.SelectedItem is not FileReviewRow file) return;
+        await PreviewFileAsync(file, PreviewFileButton);
+    }
+
+    private async void FileImageLink_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (SetupIsBusy || sender is not Button { DataContext: FileReviewRow file } link || !file.CanCompareImage) return;
+        // A filename link opens a read-only preview; the keep selector remains the
+        // only owner of keep decisions. Ordinary row selection does not open it.
+        GroupFilesList.SelectedItem = file;
+        await PreviewFileAsync(file, link);
+    }
+
+    private async void GroupImageLink_Click(object? sender, RoutedEventArgs e)
+    {
+        e.Handled = true;
+        if (SetupIsBusy || sender is not Button { DataContext: DuplicateGroupItem item } link || !item.CanCompareImage) return;
+        ResultsList.SelectedItem = item;
+        if (GroupFilesList.ItemsSource?.Cast<FileReviewRow>().FirstOrDefault() is not { } file) return;
+        GroupFilesList.SelectedItem = file;
+        await PreviewFileAsync(file, link);
+    }
+
+    private async Task PreviewFileAsync(FileReviewRow file, Control returnFocus)
+    {
+        if (SetupIsBusy) return;
         _setupDialogOpen = true;
         using var cancellation = new CancellationTokenSource();
         _previewCancellation = cancellation;
@@ -84,12 +110,17 @@ public partial class MainWindow
             StatusText.Text = _scanCompletionStatus ?? "Preview closed.";
         }
         catch (OperationCanceledException) { }
+        catch (Exception exception)
+        {
+            ReportOperationFailure("File preview", exception);
+        }
         finally
         {
             _previewCancellation = null;
             _setupDialogOpen = false;
             SetScanInProgress(false);
-            if (PreviewFileButton.IsEnabled) PreviewFileButton.Focus();
+            if (returnFocus.IsEffectivelyVisible && returnFocus.IsEffectivelyEnabled) returnFocus.Focus();
+            else if (GroupFilesList.IsEnabled) GroupFilesList.Focus();
         }
     }
 }

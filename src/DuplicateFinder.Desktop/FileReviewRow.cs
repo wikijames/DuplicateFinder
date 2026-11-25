@@ -10,6 +10,8 @@ internal sealed class FileReviewRow(string path, long sizeBytes, bool keep)
     public string Size { get; } = DisplayFileSize.Format(sizeBytes);
     public bool IsKeep { get; } = keep;
     public bool IsRemovalCandidate => !IsKeep;
+    public bool CanCompareImage => ImageFilePreview.Supports(FullPath);
+    public string PreviewAccessibleName => $"Compare image {FileName}, {FullPath}";
     public string AccessibleName => $"{FileName}, {Size}, {(IsKeep ? "keep this file" : "removal candidate after confirmation")}, {FullPath}";
     public override string ToString() => AccessibleName;
 }

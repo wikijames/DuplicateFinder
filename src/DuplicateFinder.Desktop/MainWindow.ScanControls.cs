@@ -18,6 +18,19 @@ public partial class MainWindow
     private ScanFilterSettings _scanFilters = new();
     private bool _hasScanResults;
     private bool _setupDialogOpen;
+    private bool? _compactScanToolbar;
+
+    private void ScanToolbar_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (FolderEntryPanel is null || FileTypePanel is null || ScanActionsPanel is null) return;
+        var compact = e.NewSize.Width < 1100;
+        if (_compactScanToolbar == compact) return;
+        _compactScanToolbar = compact;
+        Grid.SetColumnSpan(FolderEntryPanel, compact ? 3 : 1);
+        Grid.SetRow(FileTypePanel, compact ? 1 : 0);
+        Grid.SetColumn(FileTypePanel, compact ? 0 : 1);
+        Grid.SetRow(ScanActionsPanel, compact ? 1 : 0);
+    }
 
     private bool SetupIsBusy => _scanCancellation is not null || _cleanupInProgress || _setupDialogOpen;
 
@@ -34,6 +47,16 @@ public partial class MainWindow
     {
         ManageFoldersButton.Content = $"Folders ({_scanFolders.Folders.Count})";
         ToolTip.SetTip(ManageFoldersButton, string.Join(Environment.NewLine, _scanFolders.Folders));
+        SelectedFoldersText.Text = _scanFolders.Folders.Count switch
+        {
+            0 => "No folders selected. Add a folder or drive.",
+            1 => $"Selected to scan: {_scanFolders.Folders[0]}",
+            _ => $"Selected to scan: {_scanFolders.Folders[0]} (+{_scanFolders.Folders.Count - 1} more; see Folders)"
+        };
+        ToolTip.SetTip(SelectedFoldersText, string.Join(Environment.NewLine, _scanFolders.Folders));
+        RootPathBox.PlaceholderText = _scanFolders.Folders.Count == 0
+            ? "Enter a folder or drive path to add"
+            : "Add another folder or drive path";
     }
 
     private void AddFolderButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

@@ -346,7 +346,8 @@ try {
         $rows = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Descendants,
             [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
         $rows[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
-        Invoke-Control PreviewFileButton
+        $imageLinkId = if ($theme -eq 'Dark') { 'GroupImageLink' } else { 'FileImageLink' }
+        Invoke-Control $imageLinkId
         Wait-Until { (Find-Control CopyImageMetadata).Current.Name.IndexOf('256', [StringComparison]::Ordinal) -ge 0 } 'Image thumbnail did not load.'
         if ((Find-Control ImageKeepPath).GetCurrentPattern([Windows.Automation.ValuePattern]::Pattern).Current.Value -ne $imagePaths[2]) { throw 'Image preview changed the kept path.' }
         if (!(Find-Control CloseImageComparison).Current.HasKeyboardFocus) { throw 'Image close button must have initial focus.' }
@@ -361,7 +362,7 @@ try {
         Start-Sleep -Milliseconds 150
         if ((Find-Control CloseImageComparison).Current.IsOffscreen) { throw 'Image close button clipped at minimum size.' }
         Invoke-Control CloseImageComparison
-        if (!(Find-Control PreviewFileButton).Current.HasKeyboardFocus) { throw 'Image preview focus did not return.' }
+        if (!(Find-Control $imageLinkId).Current.HasKeyboardFocus) { throw 'Image preview focus did not return to its image link.' }
         Invoke-Control CleanupButton
         $kept = $script:reviewWindow.FindFirst([Windows.Automation.TreeScope]::Descendants,
             [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::NameProperty, 'Protected file; will be kept'))
