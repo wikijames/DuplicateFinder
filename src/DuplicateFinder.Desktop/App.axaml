@@ -93,6 +93,18 @@
             <Setter Property="Background" Value="{DynamicResource WorkspaceDanger}" />
             <Setter Property="Foreground" Value="{DynamicResource WorkspaceOnDanger}" />
         </Style>
+        <Style Selector="Button.imageLink">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceAccentText}" />
+            <Setter Property="Padding" Value="0,2" />
+            <Setter Property="MinHeight" Value="30" />
+            <Setter Property="HorizontalAlignment" Value="Left" />
+            <Setter Property="HorizontalContentAlignment" Value="Left" />
+            <Setter Property="Cursor" Value="Hand" />
+        </Style>
+        <Style Selector="ListBoxItem:selected Button.imageLink">
+            <Setter Property="Foreground" Value="{DynamicResource WorkspaceForeground}" />
+        </Style>
         <Style Selector="TextBlock.muted">
             <Setter Property="Foreground" Value="{DynamicResource WorkspaceMuted}" />
         </Style>

@@ -42,6 +42,8 @@ public partial class MainWindow : Window
             var row = GroupFilesList.SelectedItem as FileReviewRow;
             var image = row is not null && ImageFilePreview.Supports(row.FullPath);
             PreviewFileButton.Content = image ? "Compare images" : "Preview file";
+            PreviewFileButton.IsVisible = !image && (_workspace.Selection is null
+                || !ImageFilePreview.Supports(_workspace.Selection.Group.FilePaths[0]));
             AutomationProperties.SetName(PreviewFileButton, image ? "Compare selected duplicate images" : "Preview selected file");
             PreviewFileButton.IsEnabled = !SetupIsBusy && row is not null;
         };
@@ -423,6 +425,7 @@ public partial class MainWindow : Window
         SelectedGroupTitle.Text = Path.GetFileName(selection.Group.FilePaths[0]);
         GroupFilesList.ItemsSource = selection.Group.FilePaths.Select(path => new FileReviewRow(path, selection.Group.SizeBytes,
             string.Equals(path, selection.KeepFilePath, StringComparison.OrdinalIgnoreCase))).ToList();
+        PreviewFileButton.IsVisible = !ImageFilePreview.Supports(selection.Group.FilePaths[0]);
         CleanupButton.IsEnabled = !busy && _workspace.CleanupOperation is not null;
         KeepFileComboBox.IsEnabled = !busy;
         ReviewText.Text = _workspace.CleanupOperation is null

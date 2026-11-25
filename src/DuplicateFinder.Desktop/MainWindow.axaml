@@ -96,7 +96,12 @@
                         <ListBox.ItemTemplate>
                             <DataTemplate x:DataType="local:DuplicateGroupItem">
                                 <StackPanel Spacing="5">
-                                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                                    <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding Title}" />
+                                    <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="GroupImageLink_Click"
+                                            AutomationProperties.Name="{Binding PreviewAccessibleName}" AutomationProperties.AutomationId="GroupImageLink"
+                                            ToolTip.Tip="Compare images in this group. The file to keep stays unchanged.">
+                                        <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" TextDecorations="Underline" FontWeight="SemiBold" />
+                                    </Button>
                                     <TextBlock Text="{Binding Summary}" Classes="muted" FontSize="13" />
                                     <TextBlock Text="{Binding Reclaimable}" Foreground="{DynamicResource WorkspaceAccentText}" FontSize="13" />
                                 </StackPanel>
@@ -131,7 +136,12 @@
                             <DataTemplate x:DataType="local:FileReviewRow">
                                 <StackPanel Spacing="6" AutomationProperties.Name="{Binding AccessibleName}">
                                     <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
-                                        <TextBlock Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                        <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="FileImageLink_Click"
+                                                AutomationProperties.Name="{Binding PreviewAccessibleName}" AutomationProperties.AutomationId="FileImageLink"
+                                                ToolTip.Tip="Compare this image with the other copies. The file to keep stays unchanged.">
+                                            <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" TextDecorations="Underline" FontWeight="SemiBold" />
+                                        </Button>
                                         <TextBlock Grid.Column="1" Text="{Binding Size}" Classes="muted" FontSize="13" />
                                     </Grid>
                                     <TextBlock Text="{Binding FullPath}" Classes="muted" FontSize="13" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" ToolTip.Tip="{Binding FullPath}" />

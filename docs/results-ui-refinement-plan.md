@@ -35,3 +35,19 @@ The image viewer remains internal and read-only, supporting existing bounded
 PNG/JPEG previews. No default Windows viewer launches, new decoder packages,
 similarity matching or new cleanup modes belong in these PRs. Elapsed-time/ETA
 enhancements and extension-filter ordering are separate follow-ups.
+
+## PR 1 validation and handoff
+
+- Release build: zero warnings/errors; all 245 automated tests pass.
+- Targeted native UI checks used a generated fixture with two PNG duplicate
+  groups and one text group. File/group image links, Enter activation, Escape,
+  focus restoration, extra-copy navigation and a nondefault keep choice passed.
+- Inspected single-row maximized and two-row restored layouts, light/dark/system
+  themes, conditional Custom extensions and retention when changing presets.
+  Generated source hashes were unchanged. No cleanup was executed.
+- Updated the existing synthetic review runner to activate image links and check
+  focus return. The complete runner was not rerun during these targeted checks.
+  Exact minimum-size, Narrator, high contrast and display-scaling acceptance
+  remain separate checks; the restored-size check does not certify them.
+- PR 2 (continuous results and lazy thumbnails) remains to be implemented after
+  PR 1 merges. The drive-root fix must merge before PR 1 targets development.
