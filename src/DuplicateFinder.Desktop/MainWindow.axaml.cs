@@ -130,6 +130,7 @@ public partial class MainWindow : Window
     {
         _scanCancellation?.Cancel();
         _previewCancellation?.Cancel();
+        Thumbnails.Dispose();
         base.OnClosed(e);
     }
 
@@ -146,6 +147,9 @@ public partial class MainWindow : Window
         SetScanInProgress(false);
         try
         {
+            // Background thumbnail readers must release their read-only handles
+            // before an explicitly confirmed cleanup can request exclusive access.
+            await Thumbnails.WaitForIdleAsync();
             var (confirmed, destination) = await ConfirmCleanupAsync(operation);
             if (!confirmed)
             {
@@ -242,6 +246,7 @@ public partial class MainWindow : Window
     private void SetScanInProgress(bool scanning)
     {
         var busy = scanning || _cleanupInProgress || _setupDialogOpen;
+        Thumbnails.SetPaused(busy);
         RootPathBox.IsEnabled = !busy;
         AddFolderButton.IsEnabled = !busy;
         ManageFoldersButton.IsEnabled = !busy;
@@ -361,6 +366,7 @@ public partial class MainWindow : Window
 
     private void ClearCurrentResults(string statusMessage)
     {
+        Thumbnails.Clear();
         _scanCompletionStatus = null;
         _hasScanResults = false;
         ScanWarningText.IsVisible = false;
@@ -514,6 +520,7 @@ public partial class MainWindow : Window
         SetScanInProgress(false);
         try
         {
+            await Thumbnails.WaitForIdleAsync();
             var directory = await PromptForBatchAsync();
             if (directory is null)
             {

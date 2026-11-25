@@ -150,9 +150,7 @@
                             </DataTemplate>
                             <DataTemplate DataType="local:FileReviewRow" x:DataType="local:FileReviewRow">
                                 <Grid ColumnDefinitions="64,*,Auto" ColumnSpacing="12" AutomationProperties.Name="{Binding AccessibleName}">
-                                    <Border Width="64" Height="64" Background="{DynamicResource WorkspaceInset}" CornerRadius="6">
-                                        <TextBlock Text="FILE" Classes="muted" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="11" />
-                                    </Border>
+                                    <local:FileThumbnail Click="FileThumbnail_Click" />
                                     <StackPanel Grid.Column="1" Spacing="4">
                                         <TextBlock IsVisible="{Binding !CanCompareImage}" Text="{Binding FileName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                         <Button IsVisible="{Binding CanCompareImage}" Classes="imageLink" Click="FileImageLink_Click"

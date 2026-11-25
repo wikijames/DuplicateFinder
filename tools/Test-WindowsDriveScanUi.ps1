@@ -96,7 +96,8 @@ try {
     if ((Find-Control VisibleGroupsText).Current.Name -ne '1 of 1 groups') { throw 'Expected one cross-drive duplicate group.' }
     $files = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Children,
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
-    if ($files.Count -ne 2) { throw 'Hidden, system or quarantine content entered the default scan.' }
+    $fileRows = @($files | Where-Object { $_.Current.Name -match ', (keep this file|removal candidate after confirmation),' })
+    if ($fileRows.Count -ne 2) { throw 'Hidden, system or quarantine content entered the default scan.' }
     $script:driveWindow.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(920, 660)
     Start-Sleep -Milliseconds 200
     foreach ($id in @('SelectedFoldersText', 'ResultsList', 'GroupFilesList', 'KeepFileComboBox', 'CleanupButton')) {

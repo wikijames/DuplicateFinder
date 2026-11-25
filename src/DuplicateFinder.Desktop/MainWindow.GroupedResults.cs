@@ -8,6 +8,7 @@ namespace DuplicateFinder.Desktop;
 
 public partial class MainWindow
 {
+    internal ThumbnailLoader Thumbnails { get; } = new();
     private GroupedReviewRows _groupedRows = new(Array.Empty<DuplicateGroup>(), group => group.FilePaths[0]);
     private bool _synchronizingResults;
 
