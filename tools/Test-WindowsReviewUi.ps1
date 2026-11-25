@@ -132,6 +132,12 @@ function Clear-ScanFolders {
     }
 }
 
+function Get-ReviewFileRows {
+    $entries = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Descendants,
+        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
+    return @($entries | Where-Object { $_.Current.Name -match ', (keep this file|removal candidate after confirmation),' })
+}
+
 try {
     $condition = [Windows.Automation.AndCondition]::new(
         [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ProcessIdProperty, $testProcess.Id),
@@ -148,6 +154,9 @@ try {
     Invoke-Control ScanButton
     Wait-Until { (Find-Control ScanButton).Current.IsEnabled } 'Synthetic scan did not finish.'
     if ((Find-Control VisibleGroupsText).Current.Name -ne '1 of 1 groups') { throw 'Expected one three-copy group.' }
+    $initialFiles = @(Get-ReviewFileRows)
+    if ($initialFiles.Count -eq 0) { throw 'File rows missing from the grouped results.' }
+    $initialFiles[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
     $script:reviewWindow.GetCurrentPattern([Windows.Automation.TransformPattern]::Pattern).Resize(920, 660)
     Start-Sleep -Milliseconds 200
     foreach ($id in @('ResultsList', 'GroupFilesList', 'KeepFileComboBox', 'CleanupButton', 'PreviewFileButton')) {
@@ -171,8 +180,7 @@ try {
     if ((Get-ChildItem -LiteralPath $small -File -Recurse).Count -ne 3) { throw 'Cancellation changed fixture files.' }
     Select-Choice CleanupActionBox 'Quarantine'
 
-    $files = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Descendants,
-        [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
+    $files = @(Get-ReviewFileRows)
     if ($files.Count -eq 0) { throw 'File rows missing.' }
     $files[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
     Invoke-Control PreviewFileButton
@@ -343,8 +351,7 @@ try {
     Select-Choice KeepFileComboBox 'copy-two'
     foreach ($theme in @('Light', 'Dark', 'System')) {
         Select-Choice AppearanceBox $theme
-        $rows = (Find-Control GroupFilesList).FindAll([Windows.Automation.TreeScope]::Descendants,
-            [Windows.Automation.PropertyCondition]::new([Windows.Automation.AutomationElement]::ControlTypeProperty, [Windows.Automation.ControlType]::ListItem))
+        $rows = @(Get-ReviewFileRows)
         $rows[0].GetCurrentPattern([Windows.Automation.SelectionItemPattern]::Pattern).Select()
         $imageLinkId = if ($theme -eq 'Dark') { 'GroupImageLink' } else { 'FileImageLink' }
         Invoke-Control $imageLinkId

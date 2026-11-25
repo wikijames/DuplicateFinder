@@ -6,6 +6,17 @@ namespace DuplicateFinder.Tests;
 
 public sealed class ImageFilePreviewTests : IDisposable
 {
+    [Fact]
+    public void ListThumbnailOutputIsBoundedToNinetySixPixels()
+    {
+        if (!OperatingSystem.IsWindows()) return;
+        var path = WriteImage(".png", SKEncodedImageFormat.Png, 1200, 600);
+        var result = ImageFilePreview.Read(path, thumbnailDimension: ThumbnailLoader.ThumbnailSize);
+        Assert.NotNull(result.Thumbnail);
+        using var decoded = SKBitmap.Decode(result.Thumbnail);
+        Assert.Equal(96, decoded.Width);
+        Assert.Equal(48, decoded.Height);
+    }
     private readonly string _root = Path.Combine(Path.GetTempPath(), "DuplicateFinder-ImagePreview-" + Guid.NewGuid().ToString("N"));
     public ImageFilePreviewTests() => Directory.CreateDirectory(_root);
 

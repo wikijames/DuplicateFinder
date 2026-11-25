@@ -31,16 +31,23 @@ public partial class MainWindow
     private void RefreshResultGroups()
     {
         // XAML events can fire before the remaining named controls have been initialized.
-        if (ResultsList is null || ResultsSortBox is null || VisibleGroupsText is null) return;
+        if (ResultsList is null || ResultsSortBox is null || VisibleGroupsText is null || GroupFilesList is null) return;
         var selected = _workspace.Selection?.Group;
         var groups = ResultGroupQuery.Apply(_workspace.Groups, ResultsSearchBox.Text,
             (ResultGroupSort)Math.Max(0, ResultsSortBox.SelectedIndex));
-        ResultsList.ItemsSource = groups.Select(group => new DuplicateGroupItem(group)).ToList();
+        _groupedRows = new GroupedReviewRows(groups, _workspace.GetKeepFilePath);
+        _synchronizingResults = true;
+        try
+        {
+            ResultsList.ItemsSource = groups.Select(group => new DuplicateGroupItem(group)).ToList();
+            GroupFilesList.ItemsSource = _groupedRows.Rows;
+        }
+        finally { _synchronizingResults = false; }
         VisibleGroupsText.Text = $"{groups.Count} of {_workspace.Groups.Count} groups";
         EmptyResultsText.IsVisible = groups.Count == 0;
         if (groups.Count == 0 && _workspace.Groups.Count > 0) EmptyResultsText.Text = "No matching groups. Clear the search to show all results.";
         // Hidden groups cannot retain an actionable cleanup selection.
-        ResultsList.SelectedItem = ResultsList.ItemsSource.Cast<DuplicateGroupItem>().FirstOrDefault(item => ReferenceEquals(item.Group, selected));
+        SelectResultGroup(groups.FirstOrDefault(group => ReferenceEquals(group, selected)), scrollToGroup: true);
     }
 
     private async void PreviewFileButton_Click(object? sender, RoutedEventArgs e)
@@ -55,6 +62,7 @@ public partial class MainWindow
         if (SetupIsBusy || sender is not Button { DataContext: FileReviewRow file } link || !file.CanCompareImage) return;
         // A filename link opens a read-only preview; the keep selector remains the
         // only owner of keep decisions. Ordinary row selection does not open it.
+        SelectResultGroup(file.Group, scrollToGroup: false);
         GroupFilesList.SelectedItem = file;
         await PreviewFileAsync(file, link);
     }
@@ -64,7 +72,7 @@ public partial class MainWindow
         e.Handled = true;
         if (SetupIsBusy || sender is not Button { DataContext: DuplicateGroupItem item } link || !item.CanCompareImage) return;
         ResultsList.SelectedItem = item;
-        if (GroupFilesList.ItemsSource?.Cast<FileReviewRow>().FirstOrDefault() is not { } file) return;
+        if (_groupedRows.FirstFileFor(item.Group) is not { } file) return;
         GroupFilesList.SelectedItem = file;
         await PreviewFileAsync(file, link);
     }

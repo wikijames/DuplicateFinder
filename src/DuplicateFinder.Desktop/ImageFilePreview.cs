@@ -17,9 +17,10 @@ internal static class ImageFilePreview
     internal static bool Supports(string path) => Path.GetExtension(path).ToLowerInvariant() is ".png" or ".jpg" or ".jpeg";
 
     // Called on a worker. Only a bounded thumbnail crosses to the UI; no full-size bitmap is retained.
-    internal static ImagePreviewResult Read(string path, CancellationToken cancellationToken = default)
+    internal static ImagePreviewResult Read(string path, CancellationToken cancellationToken = default, int thumbnailDimension = ThumbnailDimension)
     {
         cancellationToken.ThrowIfCancellationRequested();
+        if (thumbnailDimension < 1 || thumbnailDimension > ThumbnailDimension) throw new ArgumentOutOfRangeException(nameof(thumbnailDimension));
         if (!Supports(path)) return new("Metadata only: image previews support PNG and JPEG files.");
         if (!OperatingSystem.IsWindows()) return new("Image preview is currently supported on Windows only.");
         try
@@ -40,7 +41,7 @@ internal static class ImageFilePreview
             var swapped = (int)codec.EncodedOrigin >= 5;
             var width = swapped ? info.Height : info.Width;
             var height = swapped ? info.Width : info.Height;
-            var scale = Math.Min(1d, ThumbnailDimension / (double)Math.Max(width, height));
+            var scale = Math.Min(1d, thumbnailDimension / (double)Math.Max(width, height));
             using var thumbnail = new SKBitmap(Math.Max(1, (int)Math.Round(width * scale)), Math.Max(1, (int)Math.Round(height * scale)));
             using (var canvas = new SKCanvas(thumbnail))
             {

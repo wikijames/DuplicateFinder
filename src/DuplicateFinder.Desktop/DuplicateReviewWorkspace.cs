@@ -47,10 +47,13 @@ public sealed class DuplicateReviewWorkspace
             throw new ArgumentException("Select a group from the current scan.", nameof(group));
         }
 
-        var keepPath = _keepChoices.TryGetValue(group, out var previousChoice) ? previousChoice : group.FilePaths.First();
+        var keepPath = GetKeepFilePath(group);
         Selection = new DuplicateReviewSelection(group, keepPath);
         UpdateOperation();
     }
+
+    internal string GetKeepFilePath(DuplicateGroup group) =>
+        _keepChoices.TryGetValue(group, out var previousChoice) ? previousChoice : group.FilePaths.First();
 
     public void SelectKeepFile(string path)
     {
