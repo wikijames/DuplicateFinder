@@ -118,6 +118,11 @@ public partial class MainWindow : Window
             _customExtensions = ExtensionsBox.Text ?? string.Empty;
         }
         ExtensionsBox.IsReadOnly = !preset.IsCustom;
+        CustomExtensionsPanel.IsVisible = preset.IsCustom;
+        ToolTip.SetTip(FileTypeBox, preset.IsCustom
+            ? "Choose the extensions to compare below. Matching uses exact file contents."
+            : (string.IsNullOrEmpty(preset.Extensions) ? "All eligible file extensions." : preset.Extensions)
+                + " Exact file contents are compared; similar-looking images are not matched.");
         ExtensionsBox.PlaceholderText = preset.IsCustom ? ".jpg, .pdf, .txt" : "All file extensions";
         ExtensionsBox.Text = preset.IsCustom ? _customExtensions : preset.Extensions;
         InvalidateScanSetup();

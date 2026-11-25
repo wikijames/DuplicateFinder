@@ -32,27 +32,33 @@
                     <Button Grid.Column="1" Name="ManageFoldersButton" Content="Folders (0)" Click="ManageFoldersButton_Click" />
                     <Button Grid.Column="2" Name="ScanSettingsButton" Content="Scan settings" Click="ScanSettingsButton_Click" />
                 </Grid>
-                <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+                <Grid Grid.Row="1" Name="ScanToolbar" ColumnDefinitions="*,Auto,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="12" RowSpacing="6" SizeChanged="ScanToolbar_SizeChanged">
+                  <Grid Name="FolderEntryPanel" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="8">
                     <TextBox Name="RootPathBox" PlaceholderText="Enter a folder or drive path to add" VerticalContentAlignment="Center"
                              AutomationProperties.Name="Folder to add" TextChanged="ScanSetup_Changed" />
                     <Button Grid.Column="1" Name="AddFolderButton" Content="Add" Click="AddFolderButton_Click" />
                     <Button Grid.Column="2" Name="BrowseButton" Content="Browse" Click="BrowseButton_Click" />
-                    <Button Grid.Column="3" Name="ScanButton" Content="Scan folders" Click="ScanButton_Click"
+                  </Grid>
+                  <StackPanel Grid.Column="1" Name="FileTypePanel" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
+                    <ComboBox Name="FileTypeBox" Width="180" AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="2" Name="ScanActionsPanel" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                    <Button Name="ScanButton" Content="Scan folders" Click="ScanButton_Click"
                             Background="{DynamicResource WorkspaceAccent}" Foreground="{DynamicResource WorkspaceOnAccent}" FontWeight="SemiBold" />
-                    <Button Grid.Column="4" Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" ToolTip.Tip="Cancel the scan (Escape)" AutomationProperties.Name="Cancel scan" />
+                    <Button Name="CancelScanButton" Content="Cancel" Click="CancelScanButton_Click" IsEnabled="False" ToolTip.Tip="Cancel the scan (Escape)" AutomationProperties.Name="Cancel scan" />
+                  </StackPanel>
                 </Grid>
                 <TextBlock Grid.Row="2" Name="SelectedFoldersText" Classes="muted" FontSize="13"
                            Text="No folders selected. Add a folder or drive."
                            TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis"
                            AutomationProperties.LiveSetting="Polite" />
-                <Grid Grid.Row="3" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,180,*" ColumnSpacing="12" RowSpacing="6">
-                    <TextBlock Classes="muted" Text="File type" VerticalAlignment="Center" />
-                    <ComboBox Grid.Column="1" Name="FileTypeBox" HorizontalAlignment="Stretch"
-                              AutomationProperties.Name="File type filter" SelectionChanged="FileTypeBox_SelectionChanged" />
-                    <TextBox Grid.Column="2" Name="ExtensionsBox" PlaceholderText="All file extensions" IsReadOnly="True"
+                <Grid Grid.Row="3" Name="CustomExtensionsPanel" IsVisible="False" RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*" ColumnSpacing="12" RowSpacing="6">
+                    <TextBlock Classes="muted" Text="Extensions" VerticalAlignment="Center" />
+                    <TextBox Grid.Column="1" Name="ExtensionsBox" PlaceholderText="All file extensions" IsReadOnly="True"
                              AutomationProperties.Name="Included file extensions" TextChanged="ScanSetup_Changed" />
-                    <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Classes="muted"
-                               Text="Choose Custom extensions to edit the list. Every category uses exact content matching."
+                    <TextBlock Grid.Row="1" Grid.Column="1" Classes="muted"
+                               Text="Enter extensions separated by commas. Every category uses exact content matching."
                                TextWrapping="Wrap" FontSize="13" />
                 </Grid>
             </Grid>

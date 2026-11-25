@@ -18,6 +18,19 @@ public partial class MainWindow
     private ScanFilterSettings _scanFilters = new();
     private bool _hasScanResults;
     private bool _setupDialogOpen;
+    private bool? _compactScanToolbar;
+
+    private void ScanToolbar_SizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (FolderEntryPanel is null || FileTypePanel is null || ScanActionsPanel is null) return;
+        var compact = e.NewSize.Width < 1100;
+        if (_compactScanToolbar == compact) return;
+        _compactScanToolbar = compact;
+        Grid.SetColumnSpan(FolderEntryPanel, compact ? 3 : 1);
+        Grid.SetRow(FileTypePanel, compact ? 1 : 0);
+        Grid.SetColumn(FileTypePanel, compact ? 0 : 1);
+        Grid.SetRow(ScanActionsPanel, compact ? 1 : 0);
+    }
 
     private bool SetupIsBusy => _scanCancellation is not null || _cleanupInProgress || _setupDialogOpen;
 
