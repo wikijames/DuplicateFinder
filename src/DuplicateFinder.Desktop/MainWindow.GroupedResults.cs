@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using DuplicateFinder.Core;
 
 namespace DuplicateFinder.Desktop;
@@ -33,6 +35,12 @@ public partial class MainWindow
                 {
                     GroupFilesList.SelectedItem = header;
                     GroupFilesList.ScrollIntoView(header);
+                    Dispatcher.UIThread.Post(() =>
+                    {
+                        if (!ReferenceEquals(_workspace.Selection?.Group, header.Group)) return;
+                        if (GroupFilesList.ContainerFromItem(header) is { } container)
+                            container.BringIntoView(new Rect(0, 0, container.Bounds.Width, GroupFilesList.Bounds.Height));
+                    }, DispatcherPriority.Loaded);
                 }
             }
             RefreshReview();
@@ -78,7 +86,8 @@ public partial class MainWindow
         finally { _synchronizingResults = false; }
         // The Keep button becomes hidden; return keyboard focus to the file row.
         GroupFilesList.SelectedItem = file;
-        GroupFilesList.Focus();
+        if (GroupFilesList.ContainerFromItem(file) is { } container) container.Focus();
+        else GroupFilesList.Focus();
     }
 
     private async void FileThumbnail_Click(object? sender, RoutedEventArgs e)

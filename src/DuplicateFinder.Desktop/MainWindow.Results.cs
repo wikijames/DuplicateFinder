@@ -47,7 +47,7 @@ public partial class MainWindow
         EmptyResultsText.IsVisible = groups.Count == 0;
         if (groups.Count == 0 && _workspace.Groups.Count > 0) EmptyResultsText.Text = "No matching groups. Clear the search to show all results.";
         // Hidden groups cannot retain an actionable cleanup selection.
-        SelectResultGroup(groups.FirstOrDefault(group => ReferenceEquals(group, selected)), scrollToGroup: false);
+        SelectResultGroup(groups.FirstOrDefault(group => ReferenceEquals(group, selected)), scrollToGroup: true);
     }
 
     private async void PreviewFileButton_Click(object? sender, RoutedEventArgs e)

@@ -49,5 +49,35 @@ enhancements and extension-filter ordering are separate follow-ups.
   focus return. The complete runner was not rerun during these targeted checks.
   Exact minimum-size, Narrator, high contrast and display-scaling acceptance
   remain separate checks; the restored-size check does not certify them.
-- PR 2 (continuous results and lazy thumbnails) remains to be implemented after
-  PR 1 merges. The drive-root fix must merge before PR 1 targets development.
+- PR 1 and its prerequisite drive-root fix merged into development as `eeb717c`.
+  The completed PR 2 implementation and its validation are recorded below.
+
+## PR 2 implementation and validation
+
+- Based on merged development `eeb717c`; grouped-list and thumbnail changes are
+  separate commits on `feature/grouped-results-and-thumbnails`.
+- All matching group headers and file rows share one flat virtualized list.
+  Sidebar navigation scrolls to the corresponding group. Search/sort retain
+  keep choices; hiding the active group disables cleanup until another is chosen.
+- Per-row keep actions update exactly one group's presentation in place. The
+  existing reviewed cleanup operation still applies only to the active group.
+  Image names and thumbnails activate the existing internal comparison window.
+- Thumbnails use the existing bounded PNG/JPEG reader, one decoder, a 64-entry
+  encoded cache and 96-pixel output. Recycled rows cancel loads and dispose
+  bitmaps. New scans clear the cache; operations pause readers and wait for idle
+  before cleanup/restore review. No scanning or cleanup service was changed.
+- Release build has zero warnings/errors and all 253 tests pass. Added tests
+  cover a 10,000-group projection, unchanged active cleanup, per-group keep
+  retention, serialized/coalesced thumbnail requests, bounded cache eviction,
+  cancelled queued loads, stale-result rejection and 96-pixel output.
+- Targeted native acceptance used generated files only: a three-group image/text
+  fixture and a 1,002-group/2,004-file fixture. Observed bounded realized rows,
+  keyboard End navigation to the final group, visible thumbnails, cross-group
+  preview activation, focus return, per-row keep isolation, search retention,
+  hidden-group cleanup disabling, single-group confirmation and cancellation.
+  No cleanup was confirmed; source hashes remained unchanged in the small fixture.
+- Inspected restored/maximized layouts and light/system-dark presentation.
+  Exact minimum-size, Narrator, high contrast, DPI and clean-machine acceptance
+  are not certified by these targeted checks. Updated synthetic review tooling
+  counts file totals independently of virtualized controls; the full legacy UI
+  runner was not executed as part of these targeted checks.
